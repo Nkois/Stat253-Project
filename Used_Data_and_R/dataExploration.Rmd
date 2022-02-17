@@ -18,11 +18,14 @@ tidymodels_prefer()
 
 
 ```{r}
-COVID_State <- read_csv("/Users/NorthCarpenter/Documents/Sort/School/University Managment/Studdies/Third Year/Stats 253/Stat253 Project/EconomicTracker-main/data/COVID - State - Daily.csv")
+COVID_State <- read_csv("COVID - State - Daily.csv")
 
-Employment_State <- read_csv("/Users/NorthCarpenter/Documents/Sort/School/University Managment/Studdies/Third Year/Stats 253/Stat253 Project/EconomicTracker-main/data/Employment - State - Daily.csv")
+Employment_State <- read_csv("Employment - State - Daily.csv")
 
-Mobility_State <- read_csv("/Users/NorthCarpenter/Documents/Sort/School/University Managment/Studdies/Third Year/Stats 253/Stat253 Project/EconomicTracker-main/data/Google Mobility - State - Daily.csv")
+Mobility_State <- read_csv("Google Mobility - State - Daily.csv")
   
-Spending_State <- read_csv("/Users/NorthCarpenter/Documents/Sort/School/University Managment/Studdies/Third Year/Stats 253/Stat253 Project/EconomicTracker-main/data/Affinity - State - Daily.csv")
+Spending_State <- read_csv("Affinity - State - Daily.csv")
+```
+```{r}
+
 ```
