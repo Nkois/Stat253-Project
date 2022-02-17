@@ -26,6 +26,10 @@ Mobility_State <- read_csv("Google Mobility - State - Daily.csv")
   
 Spending_State <- read_csv("Affinity - State - Daily.csv")
 ```
+
+
 ```{r}
+COVID_State$Date<-as.Date(with(COVID_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
 
 ```
