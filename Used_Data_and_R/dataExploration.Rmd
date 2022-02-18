@@ -62,7 +62,7 @@ lm_spec <-
   set_engine(engine = 'lm') %>%
   set_mode('regression')
 
-full_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + new_case_rate  + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota) %>%
+full_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota) %>%
   step_normalize(all_numeric_predictors()) %>%
   step_dummy(all_nominal_predictors())%>%
   step_nzv(all_predictors())
@@ -86,25 +86,81 @@ folded_mn <- vfold_cv(minnesota, v = 6)
 
 lm_lasso_spec <- 
   linear_reg() %>%
-  set_args(mixture = 1, penalty = 0) %>% ## mixture = 1 indicates Lasso, we'll choose penalty later
-  set_engine(engine = 'glmnet') %>% #note we are using a different engine
+  set_args(mixture = 1, penalty = tune()) %>% ## mixture = 1 indicates Lasso, we'll choose penalty later
+  set_engine(engine = 'glmnet') %>% 
   set_mode('regression') 
 
-full_lasso_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + new_case_rate  + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota) %>%
+full_lasso_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate  + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota) %>%
   step_normalize(all_numeric_predictors()) %>%
   step_dummy(all_nominal_predictors())%>%
   step_nzv(all_predictors())
 
-mn_lasso_wf <- workflow() %>%
+mn_lasso_wf_tune <- workflow() %>%
   add_recipe(full_lasso_rec) %>%
   add_model(lm_lasso_spec)
 
-mnMod_cv_lasso <- fit_resamples(mn_lasso_wf,
-  resamples = folded_mn,
-  metrics = metric_set(rmse, rsq, mae))
+#for no-penalty lasso
+#mnMod_cv_lasso <- fit_resamples(mn_lasso_wf_tune,
+#  resamples = folded_mn,
+ # metrics = metric_set(rmse, rsq, mae))
 
-mnMod_cv_lasso %>% collect_metrics(summarize=TRUE)
+#mnMod_cv_lasso %>% collect_metrics(summarize=TRUE)
+
+# Tune Model (trying a variety of values of Lambda penalty)
+penalty_grid <- grid_regular(
+  penalty(range = c(-5, 3)), #log10 transformed 10^-5 to 10^3
+  levels = 30)
+
+tune_res <- tune_grid( # new function for tuning parameters
+  mn_lasso_wf_tune, # workflow
+  resamples = folded_mn, # cv folds
+  metrics = metric_set(rmse, rsq, mae),
+  grid = penalty_grid # penalty grid defined above
+)
+
+# Visualize Model Evaluation Metrics from Tuning
+autoplot(tune_res) + theme_classic()
+
+# Summarize Model Evaluation Metrics (CV)
+collect_metrics(tune_res) %>%
+  filter(.metric == 'rmse') %>% # or choose mae
+  select(penalty, rmse = mean) 
+
+best_penalty <- select_best(tune_res, metric = 'rmse') # choose penalty value based on lowest mae or rmse
+
+# Fit Final Model
+final_wf <- finalize_workflow(mn_lasso_wf_tune, best_penalty) # incorporates penalty value to workflow
+
+final_fit <- fit(final_wf, data = minnesota)
+
+tidy(final_fit)
 ```
 
 
+```{r}
+#Residual Plots
+#OLS
+mn_mod_output <- minnesota %>%
+  bind_cols(predict(mnFullMod_cv, new_data = minnesota)) %>%
+    mutate(resid = gps_away_from_home - .pred)
+ 
+ggplot(mn_mod_output, aes(y = resid, x = .pred)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+#LASSO
+mn_mod_output_lasso <- minnesota %>%
+  bind_cols(predict(final_fit, new_data = minnesota)) %>%
+    mutate(resid = gps_away_from_home - .pred)
+ 
+ggplot(mn_mod_output_lasso, aes(y = resid, x = hospitalized_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+
+```
 
