@@ -18,13 +18,13 @@ tidymodels_prefer()
 
 
 ```{r message = FALSE}
-COVID_State <- read_csv("COVID - State - Daily.csv")
+COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
 
-Employment_State <- read_csv("Employment - State - Daily.csv")
+Employment_State <- read.csv("Employment - State - Daily.csv", na.strings = ".")
 
-Mobility_State <- read_csv("Google Mobility - State - Daily.csv")
+Mobility_State <- read.csv("Google Mobility - State - Daily.csv", na.strings = ".")
   
-Spending_State <- read_csv("Affinity - State - Daily.csv")
+Spending_State <- read.csv("Affinity - State - Daily.csv", na.strings = ".")
 ```
 
 
@@ -47,4 +47,29 @@ full_data1 <- full_data %>%
 
 minnesota <- full_data1 %>%
   filter(statefips==27)
+  
 ```
+
+```{r}
+set.seed(123)
+
+folded_mn <- vfold_cv(minnesota, v = 6)
+
+lm_spec <-
+  linear_reg() %>%
+  set_engine(engine = 'lm') %>%
+  set_mode('regression')
+
+mn_model_wf <- workflow() %>%
+  add_formula(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + new_case_rate  + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices) %>%
+  add_model(lm_spec)
+
+mnFullMod_cv <- fit_resamples(mn_model_wf,
+  resamples = folded_mn,
+  metrics = metric_set(rmse, rsq, mae))
+
+
+```
+
+
+
