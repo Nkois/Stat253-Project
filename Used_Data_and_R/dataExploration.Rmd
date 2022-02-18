@@ -50,7 +50,9 @@ minnesota <- full_data1 %>%
   
 ```
 
+
 ```{r}
+#OLS
 set.seed(123)
 
 folded_mn <- vfold_cv(minnesota, v = 6)
@@ -60,15 +62,48 @@ lm_spec <-
   set_engine(engine = 'lm') %>%
   set_mode('regression')
 
+full_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + new_case_rate  + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors())%>%
+  step_nzv(all_predictors())
+
 mn_model_wf <- workflow() %>%
-  add_formula(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + new_case_rate  + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices) %>%
+  add_recipe(full_rec) %>%
   add_model(lm_spec)
 
 mnFullMod_cv <- fit_resamples(mn_model_wf,
   resamples = folded_mn,
   metrics = metric_set(rmse, rsq, mae))
 
+mnFullMod_cv %>% collect_metrics(summarize=TRUE)
+```
 
+```{r}
+#LASSO
+set.seed(123)
+
+folded_mn <- vfold_cv(minnesota, v = 6)
+
+lm_lasso_spec <- 
+  linear_reg() %>%
+  set_args(mixture = 1, penalty = 0) %>% ## mixture = 1 indicates Lasso, we'll choose penalty later
+  set_engine(engine = 'glmnet') %>% #note we are using a different engine
+  set_mode('regression') 
+
+full_lasso_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + new_case_rate  + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors())%>%
+  step_nzv(all_predictors())
+
+mn_lasso_wf <- workflow() %>%
+  add_recipe(full_lasso_rec) %>%
+  add_model(lm_lasso_spec)
+
+mnMod_cv_lasso <- fit_resamples(mn_lasso_wf,
+  resamples = folded_mn,
+  metrics = metric_set(rmse, rsq, mae))
+
+mnMod_cv_lasso %>% collect_metrics(summarize=TRUE)
 ```
 
 
