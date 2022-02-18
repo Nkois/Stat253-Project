@@ -44,6 +44,7 @@ head(full_data)
 full_data1 <- full_data %>%
   select(-year.x, -month.x, -day.x, - year.y, -month.y, -day.y, -year.x )
 
+
 minnesota <- full_data1 %>%
   filter(statefips==27)
 ```
