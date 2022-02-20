@@ -6,6 +6,9 @@ output: html_document
 ---
 
 ```{r}
+# library statements 
+# read in data
+
 library(ISLR)
 library(dplyr)
 library(readr)
@@ -14,10 +17,7 @@ library(ggplot2)
 library(splines)
 library(tidymodels)
 tidymodels_prefer()
-```
 
-
-```{r message = FALSE}
 COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
 
 Employment_State <- read.csv("Employment - State - Daily.csv", na.strings = ".")
@@ -29,6 +29,8 @@ Spending_State <- read.csv("Affinity - State - Daily.csv", na.strings = ".")
 
 
 ```{r}
+# data cleaning
+
 COVID_State$Date<-as.Date(with(COVID_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
 
 Employment_State$Date<-as.Date(with(Employment_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
@@ -170,4 +172,48 @@ ggplot(mn_mod_output_lasso, aes(y = resid, x = hospitalized_rate)) +
 
 
 ```
+
+
+
+```{r}
+best_penalty <- select_best(tune_res, metric = 'mae') # choose penalty value based on lowest cv mae
+best_penalty
+
+best_se_penalty <- select_by_one_std_err(tune_res, metric = 'mae', desc(penalty))
+```
+
+
+```{r}
+#COEFFICIENT PATHS 
+
+glmnet_output <- final_fit %>% extract_fit_parsnip() %>% pluck('fit') # get the original glmnet output
+
+lambdas <- glmnet_output$lambda
+coefs_lambdas <- 
+  coefficients(glmnet_output, s = lambdas )  %>% 
+  as.matrix() %>%  
+  t() %>% 
+  as.data.frame() %>% 
+  mutate(lambda = lambdas ) %>% 
+  select(lambda, everything(), -`(Intercept)`) %>% 
+  pivot_longer(cols = -lambda, 
+               names_to = "term", 
+               values_to = "coef") %>%
+  mutate(var = purrr::map_chr(stringr::str_split(term,"_"),~.[1]))
+
+coefs_lambdas %>%
+  ggplot(aes(x = lambda, y = coef, group = term, color = var)) +
+  geom_line() +
+  geom_vline(xintercept = best_se_penalty %>% pull(penalty), linetype = 'dashed') + 
+  theme_classic() + 
+  theme(legend.position = "bottom", legend.text=element_text(size=8))
+```
+
+```{r}
+#CHOOSING PREDICTORS
+final_fit %>% tidy() %>% filter(estimate != 0)
+
+```
+
+The predictor that is most important to determining gps_away_from_home is hospitalized_rate, which is the amount of new patients currently hospitalized in an inpatient bed who have suspected or confirmed COVID-19 per 100,000 people, seven day moving average. This relationship is not too suprising, because hospitalization rates would greatly impact the surrounding communities willingness to be out of the house, depending on the ideology of each community. However, for communities with some common sense, it would follow that hospitalization rates will impact movement outside the house. Spending on remote services is another important predictor of our outcome variable. 
 
