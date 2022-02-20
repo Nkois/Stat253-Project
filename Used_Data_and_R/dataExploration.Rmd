@@ -170,7 +170,6 @@ ggplot(mn_mod_output_lasso, aes(y = resid, x = hospitalized_rate)) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
 
-
 ```
 
 
@@ -199,7 +198,7 @@ coefs_lambdas <-
   pivot_longer(cols = -lambda, 
                names_to = "term", 
                values_to = "coef") %>%
-  mutate(var = purrr::map_chr(stringr::str_split(term,"_"),~.[1]))
+  mutate(var = purrr::map_chr(stringr::str_split(term,"_"),~.[2]))
 
 coefs_lambdas %>%
   ggplot(aes(x = lambda, y = coef, group = term, color = var)) +
@@ -215,5 +214,11 @@ final_fit %>% tidy() %>% filter(estimate != 0)
 
 ```
 
-The predictor that is most important to determining gps_away_from_home is hospitalized_rate, which is the amount of new patients currently hospitalized in an inpatient bed who have suspected or confirmed COVID-19 per 100,000 people, seven day moving average. This relationship is not too suprising, because hospitalization rates would greatly impact the surrounding communities willingness to be out of the house, depending on the ideology of each community. However, for communities with some common sense, it would follow that hospitalization rates will impact movement outside the house. Spending on remote services is another important predictor of our outcome variable. 
+The predictor with the highest estimate (seen both in our tidy output and in the coefficient path visualization) is emp_incq3, which is the employment level for workers in the third quartile of the income distribution. However, this is part of a categorical variable, so we will consider employment level as the most important predictor. This makes contextual sense, as employment levels greatly influence how much time outside the house an individual can have. We arrived at the same outcome in LASSO as we did in OLS.
+
+
+
+
+
+
 
