@@ -52,6 +52,7 @@ minnesota <- full_data1 %>%
   
 ```
 
+Here we can see the data combined. N/A slots represent cases were there was no value to enter or where data was missing.
 
 ```{r}
 #OLS
@@ -84,6 +85,8 @@ mnFullMod_cv %>% collect_metrics(summarize=TRUE)
 mn_mod <- mn_model_wf %>% fit(data=minnesota)
 
 ```
+
+Here we have the summery data for our basic best fit model. We can see that the standard error is about three hundredths of a percent; this is very low for predicting in a range of up to 10 % change but is more significant for most days when there is very little change in average movement.
 
 ```{r}
 #LASSO
@@ -139,7 +142,7 @@ tidy(final_fit)
 
 ```
 
-
+Here we can see that the Penalty for the lasso model has very little effect on the RMSE until it gets quite high. This is probably because some predictors are quickly eliminated and the more important ones are not removed until much later.
 
 
 ```{r}
@@ -157,6 +160,8 @@ ggplot(mn_mod_output, aes(y = resid, x = .pred)) +
     theme_classic()
 ```
 
+Our model seems to be fairly randomly distributed around the middle line. There is, however, a concerning lack of predictions in the area above the 0 line around -0.09 and below the 0 line around -0.045.
+
 ```{r}
 #LASSO
 mn_mod_output_lasso <- final_fit %>%
@@ -172,7 +177,7 @@ ggplot(mn_mod_output_lasso, aes(y = resid, x = hospitalized_rate)) +
 
 ```
 
-
+Here it is slightly concerning so many of the higher rates are defined by just a few points. This probably suggests a small number of days had high hospitalization rates. We could log transform hospitalization rates to more evenly space out the data.
 
 ```{r}
 best_penalty <- select_best(tune_res, metric = 'mae') # choose penalty value based on lowest cv mae
