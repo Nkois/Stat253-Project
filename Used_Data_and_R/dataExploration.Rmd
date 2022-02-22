@@ -175,9 +175,51 @@ ggplot(mn_mod_output_lasso, aes(y = resid, x = hospitalized_rate)) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
 
+ggplot(mn_mod_output_lasso, aes(y = resid, x = fullvaccine_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_lasso, aes(y = resid, x = case_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_lasso, aes(y = resid, x = emp_incq1)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_lasso, aes(y = resid, x = emp_incq2)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_lasso, aes(y = resid, x = emp_incq3)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_lasso, aes(y = resid, x = emp_incq4)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_lasso, aes(y = resid, x = spend_remoteservices)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
 ```
 
-Here it is slightly concerning so many of the higher rates are defined by just a few points. This probably suggests a small number of days had high hospitalization rates. We could log transform hospitalization rates to more evenly space out the data.
+Overall our residuals are presenting some strange trends. Some of our predictions are taking weird paths into some kind of very negative ark. Many of our predictors have strong curves that look like some kind of spline. Since some of them are eliminated very quickly by our LASSO method I would not worry about several of these but emp_incq3 seems to have some strange patterns in it we should probably investigate.
 
 ```{r}
 best_penalty <- select_best(tune_res, metric = 'mae') # choose penalty value based on lowest cv mae
