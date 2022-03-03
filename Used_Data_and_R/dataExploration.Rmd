@@ -60,6 +60,7 @@ ggplot(minnesota, aes(y = gps_away_from_home, x = Date)) +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
+```
 
 ggplot(mn_mod_output_lasso, aes(y = resid, x = Date)) +
     geom_point() +
@@ -69,7 +70,6 @@ ggplot(mn_mod_output_lasso, aes(y = resid, x = Date)) +
 
 tmp <- mn_mod_output_lasso
 tmp$resid
-```
 
 
 Here we can see the data combined. N/A slots represent cases were there was no value to enter or where data was missing.
