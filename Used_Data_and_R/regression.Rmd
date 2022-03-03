@@ -51,6 +51,8 @@ head(full_data)
 full_data1 <- full_data %>%
   select(-year.x, -month.x, -day.x, - year.y, -month.y, -day.y, -year.x )
 
+# Creating a Dummy Variable that is yes from entry 22 to 50, the period of dramatic change.
+full_data1 <- mutate(full_data1, dummy_spend_fall = if_else(Date >= "2020-03-16" & Date <= "2020-04-13", 1, 0))
 
 minnesota <- full_data1 %>%
   filter(statefips==27)
@@ -59,6 +61,12 @@ minnesota <- full_data1 %>%
 
 ```{r}
 ggplot(minnesota, aes(y = gps_away_from_home, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(minnesota, aes(y = dummy_spend_fall, x = Date)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
@@ -93,8 +101,17 @@ full_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospital
   step_dummy(all_nominal_predictors())%>%
   step_nzv(all_predictors())
 
+full_rec_dummy <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices + dummy_spend_fall, data=minnesota) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors())%>%
+  step_nzv(all_predictors())
+
 mn_model_wf <- workflow() %>%
   add_recipe(full_rec) %>%
+  add_model(lm_spec)
+
+mn_model_dumy_wf <- workflow() %>%
+  add_recipe(full_rec_dummy) %>%
   add_model(lm_spec)
 
 #CV is to see how well the model is doing
@@ -107,10 +124,25 @@ mnFullMod_cv %>% collect_metrics(summarize=TRUE)
 
 mn_mod <- mn_model_wf %>% fit(data=minnesota)
 
+#with Dummy fo dramatic drop in spending
+mnFullMod_cv_dumy <- fit_resamples(mn_model_dumy_wf,
+  resamples = folded_mn,
+  control = control_resamples(save_pred = TRUE),
+  metrics = metric_set(rmse, rsq, mae))
+
+mnFullMod_cv_dumy %>% collect_metrics(summarize=TRUE)
+
+mn_mod_dummy <- mn_model_dumy_wf %>% fit(data=minnesota)
+
 ```
 
 ```{r}
 mn_mod_output_OLS <- mn_mod %>%
+  predict(new_data=minnesota) %>%
+  bind_cols(minnesota)%>%
+    mutate(resid = gps_away_from_home - .pred)
+
+mn_mod_output_OLS <- mn_mod_dummy %>%
   predict(new_data=minnesota) %>%
   bind_cols(minnesota)%>%
     mutate(resid = gps_away_from_home - .pred)
