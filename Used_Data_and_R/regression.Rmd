@@ -63,6 +63,7 @@ ggplot(minnesota, aes(y = gps_away_from_home, x = Date)) +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
+```
 
 ggplot(mn_mod_output_lasso, aes(y = resid, x = Date)) +
     geom_point() +
@@ -72,7 +73,6 @@ ggplot(mn_mod_output_lasso, aes(y = resid, x = Date)) +
 
 tmp <- mn_mod_output_lasso
 tmp$resid
-```
 
 
 Here we can see the data combined. N/A slots represent cases were there was no value to enter or where data was missing.
@@ -346,3 +346,6 @@ final_fit %>% tidy() %>% filter(estimate != 0)
 ```
 
 The predictor with the highest estimate (seen both in our tidy output and in the coefficient path visualization) is emp_incq3, which is the employment level for workers in the third quartile of the income distribution. However, this is part of a categorical variable, so we will consider employment level as the most important predictor. This makes contextual sense, as employment levels greatly influence how much time outside the house an individual can have. We arrived at the same outcome in LASSO as we did in OLS.
+
+
+
