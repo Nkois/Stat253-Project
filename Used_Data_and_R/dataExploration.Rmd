@@ -2,7 +2,9 @@
 title: "dataExploration"
 author: "North Carpenter"
 date: "2/17/2022"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r}
@@ -52,6 +54,24 @@ minnesota <- full_data1 %>%
   
 ```
 
+```{r}
+ggplot(minnesota, aes(y = gps_away_from_home, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_lasso, aes(y = resid, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+tmp <- mn_mod_output_lasso
+tmp$resid
+```
+
+
 Here we can see the data combined. N/A slots represent cases were there was no value to enter or where data was missing.
 
 ```{r}
@@ -84,6 +104,61 @@ mnFullMod_cv %>% collect_metrics(summarize=TRUE)
 
 mn_mod <- mn_model_wf %>% fit(data=minnesota)
 
+```
+
+```{r}
+mn_mod_output_OLS <- mn_mod %>%
+  predict(new_data=minnesota) %>%
+  bind_cols(minnesota)%>%
+    mutate(resid = gps_away_from_home - .pred)
+
+ggplot(mn_mod_output_OLS, aes(y = resid, x = hospitalized_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_OLS, aes(y = resid, x = fullvaccine_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_OLS, aes(y = resid, x = case_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_OLS, aes(y = resid, x = emp_incq1)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_OLS, aes(y = resid, x = emp_incq2)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_OLS, aes(y = resid, x = emp_incq3)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_OLS, aes(y = resid, x = emp_incq4)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_OLS, aes(y = resid, x = spend_remoteservices)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
 ```
 
 Here we have the summery data for our basic best fit model. We can see that the standard error is about three hundredths of a percent; this is very low for predicting in a range of up to 10 % change but is more significant for most days when there is very little change in average movement.
@@ -168,7 +243,13 @@ mn_mod_output_lasso <- final_fit %>%
   predict(new_data=minnesota) %>%
   bind_cols(minnesota)%>%
     mutate(resid = gps_away_from_home - .pred)
- 
+
+ggplot(mn_mod_output_lasso, aes(y = .pred, x = gps_away_from_home)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_abline(intercept = 0, slope = 1) +
+    theme_classic()
+
 ggplot(mn_mod_output_lasso, aes(y = resid, x = hospitalized_rate)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
