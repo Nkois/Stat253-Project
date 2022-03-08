@@ -1,6 +1,6 @@
 ---
-title: "regression"
-author: "Sar"
+title: "regression With Dummy Test"
+author: "North"
 date: "3/3/2022"
 output: html_document
 ---
@@ -52,7 +52,7 @@ full_data1 <- full_data %>%
   select(-year.x, -month.x, -day.x, - year.y, -month.y, -day.y, -year.x )
 
 # Creating a Dummy Variable that is yes from entry 22 to 50, the period of dramatic change.
-full_data1 <- mutate(full_data1, dummy_spend_fall = if_else(Date >= "2020-03-16" & Date <= "2020-04-13", 1, 0))
+full_data1 <- mutate(full_data1, dummy_spend_fall = if_else(Date >= "2020-03-16" & Date <= "2020-04-16", 1, 0))
 
 minnesota <- full_data1 %>%
   filter(statefips==27)
@@ -134,6 +134,9 @@ mnFullMod_cv_dumy %>% collect_metrics(summarize=TRUE)
 
 mn_mod_dummy <- mn_model_dumy_wf %>% fit(data=minnesota)
 
+tidy(mn_mod_dummy)
+tidy(mn_mod)
+
 ```
 
 ```{r}
@@ -142,7 +145,7 @@ mn_mod_output_OLS <- mn_mod %>%
   bind_cols(minnesota)%>%
     mutate(resid = gps_away_from_home - .pred)
 
-mn_mod_output_OLS <- mn_mod_dummy %>%
+mn_mod_output_OLS_dumy <- mn_mod_dummy %>%
   predict(new_data=minnesota) %>%
   bind_cols(minnesota)%>%
     mutate(resid = gps_away_from_home - .pred)
@@ -187,6 +190,11 @@ ggplot(mn_mod_output_OLS, aes(y = resid, x = spend_remoteservices)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_OLS_dumy, aes(y = resid, x = dummy_spend_fall)) +
+    geom_boxplot() +
+    geom_smooth(color = "blue", se = FALSE) +
     theme_classic()
 ```
 
