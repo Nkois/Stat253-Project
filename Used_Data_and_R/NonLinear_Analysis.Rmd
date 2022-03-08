@@ -71,19 +71,6 @@ gam_rec_new <- gam_rec %>%
 ```
 
 ```{r}
-set.seed(123)
-
-gam_spec <- 
-  gen_additive_mod() %>%
-  set_engine(engine = 'mgcv') %>%
-  set_mode('regression') 
-
-gam_mod <- fit(lm_spec,
-    gam_rec,
-    data = minnesota_cut)
-```
-
-```{r}
 data_cv8 <- minnesota_cut %>% 
     vfold_cv(v = 8)
 
@@ -97,4 +84,17 @@ fit_resamples(
     metrics = metric_set(mae,rmse,rsq)                     
 ) %>% collect_metrics()
 ```
+
+```{r}
+set.seed(123)
+
+gam_spec <- 
+  gen_additive_mod() %>%
+  set_engine(engine = 'mgcv') %>%
+  set_mode('regression') 
+
+gam_mod <- fit(spline_wf,
+    data = minnesota_cut)
+```
+
 
