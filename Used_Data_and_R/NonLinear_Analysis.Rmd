@@ -62,11 +62,10 @@ set.seed(123)
 
 gam_spec <- 
   gen_additive_mod() %>%
-  set_engine(engine = 'ols') %>%
+  set_engine(engine = 'mgcv') %>%
   set_mode('regression') 
 
 gam_mod <- fit(gam_spec,
-    Grad.Rate ~ Private + s(Apps) + s(Top10perc) + s(Top25perc) + s(P.Undergrad) + s(Outstate) + s(Room.Board) + s(Books) + s(Personal) + s(PhD) + s(perc.alumni),
-    data = minnesota_cut
-)
+    gps_away_from_home ~ case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices,
+    data = minnesota_cut)
 ```
