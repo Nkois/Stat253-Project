@@ -56,8 +56,11 @@ minnesota <- full_data1 %>%
 ```
 
 ```{r}
+#cut the pre-pandemic data, narrow it down to only predictors we want
+
 minnesota_cut <- minnesota %>%
-  filter(Date > "2020-04-13")
+  filter(Date > "2020-04-13")%>%
+  select(Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed, emp_incq1, emp_incq2, emp_incq3, emp_incq4)
 ```
 
 ```{r}
@@ -68,11 +71,11 @@ gps <-ggplot(minnesota_cut, aes(y = gps_away_from_home, x = Date)) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
 
-vaccine <-ggplot(minnesota_cut, aes(y = fullvaccine_rate, x = Date)) +
-    geom_point() +
-    geom_smooth(color = "blue", se = FALSE) +
-    geom_hline(yintercept = 0, color = "red") + 
-    theme_classic()
+#vaccine <-ggplot(minnesota_cut, aes(y = fullvaccine_rate, x = Date)) +
+ #   geom_point() +
+ #   geom_smooth(color = "blue", se = FALSE) +
+  #  geom_hline(yintercept = 0, color = "red") + 
+ #   theme_classic()
 
 case<-ggplot(minnesota_cut, aes(y = case_rate, x = Date)) +
     geom_point() +
@@ -92,7 +95,13 @@ remote<-ggplot(minnesota_cut, aes(y = spend_remoteservices, x = Date)) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
 
-grid.arrange(gps, vaccine, case, hosp, remote, ncol=2)
+hcs<-ggplot(minnesota, aes(y = spend_hcs, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+grid.arrange(gps, case, hosp, remote, hcs, ncol=2)
 ```
 
 
@@ -132,11 +141,11 @@ grid.arrange(emp1, emp2, emp3, emp4, ncol=2)
 ```{r}
 #Visualizing non-employment variables by gps_away_from_home (using minnesota_cut)
 
-vaccine_corr <-ggplot(minnesota_cut, aes(y = gps_away_from_home, x = fullvaccine_rate)) +
-    geom_point() +
-    geom_smooth(color = "blue", se = FALSE) +
-    geom_hline(yintercept = 0, color = "red") + 
-    theme_classic()
+#vaccine_corr <-ggplot(minnesota_cut, aes(y = gps_away_from_home, x = fullvaccine_rate)) +
+#    geom_point() +
+ #   geom_smooth(color = "blue", se = FALSE) +
+ #   geom_hline(yintercept = 0, color = "red") + 
+ #   theme_classic()
 
 case_corr<-ggplot(minnesota_cut, aes(y = gps_away_from_home, x = case_rate)) +
     geom_point() +
@@ -156,9 +165,15 @@ remote_corr<-ggplot(minnesota_cut, aes(y = gps_away_from_home, x = spend_remotes
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
 
+hsc_corr <- ggplot(minnesota_cut, aes(y = gps_away_from_home, x = spend_hcs)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
 hosp_corr
 
-grid.arrange(vaccine_corr, case_corr, hosp_corr, remote_corr, ncol=2)
+grid.arrange(case_corr, hosp_corr, remote_corr, hsc_corr, ncol=2)
 ```
 
 ```{r}
@@ -191,7 +206,13 @@ emp4_corr <-ggplot(minnesota_cut, aes(y = gps_away_from_home, x = emp_incq4)) +
     theme_classic()
     #+xlim(-0.45, 0.2)
 
-grid.arrange(emp1_corr, emp2_corr, emp3_corr, emp4_corr, ncol=2)
+empUnder_corr <- ggplot(minnesota_cut, aes(y=gps_away_from_home, x=emp_incbelowmed)) + 
+  geom_point() +
+  geom_smooth(color="blue", se = FALSE) +
+  geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+grid.arrange(emp1_corr, emp2_corr, emp3_corr, emp4_corr, empUnder_corr, ncol=2)
 ```
 
 ggplot(mn_mod_output_lasso, aes(y = resid, x = Date)) +
@@ -217,7 +238,7 @@ lm_spec <-
   set_engine(engine = 'lm') %>%
   set_mode('regression')
 
-full_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota_cut) %>%
+full_rec <- recipe(gps_away_from_home ~  case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices+ spend_hcs + emp_incbelowmed, data=minnesota_cut) %>%
   step_normalize(all_numeric_predictors()) %>%
   step_dummy(all_nominal_predictors())%>%
   step_nzv(all_predictors())
@@ -250,11 +271,11 @@ ggplot(mn_mod_output_OLS, aes(y = resid, x = hospitalized_rate)) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
 
-ggplot(mn_mod_output_OLS, aes(y = resid, x = fullvaccine_rate)) +
-    geom_point() +
-    geom_smooth(color = "blue", se = FALSE) +
-    geom_hline(yintercept = 0, color = "red") + 
-    theme_classic()
+#ggplot(mn_mod_output_OLS, aes(y = resid, x = fullvaccine_rate)) +
+ #   geom_point() +
+ #   geom_smooth(color = "blue", se = FALSE) +
+ #   geom_hline(yintercept = 0, color = "red") + 
+ #   theme_classic()
 
 ggplot(mn_mod_output_OLS, aes(y = resid, x = case_rate)) +
     geom_point() +
@@ -291,6 +312,18 @@ ggplot(mn_mod_output_OLS, aes(y = resid, x = spend_remoteservices)) +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
+
+ggplot(mn_mod_output_OLS, aes(y = resid, x = spend_hcs)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_OLS, aes(y = resid, x = emp_incbelowmed)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
 ```
 
 Here we have the summery data for our basic best fit model. We can see that the standard error is about three hundredths of a percent; this is very low for predicting in a range of up to 10 % change but is more significant for most days when there is very little change in average movement.
@@ -307,7 +340,7 @@ lm_lasso_spec <-
   set_engine(engine = 'glmnet') %>% 
   set_mode('regression') 
 
-full_lasso_rec <- recipe(gps_away_from_home ~  fullvaccine_rate+case_rate + hospitalized_rate  + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota_cut) %>%
+full_lasso_rec <- recipe(gps_away_from_home ~  case_rate + hospitalized_rate  + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices+ spend_hcs + emp_incbelowmed, data=minnesota_cut) %>%
   step_normalize(all_numeric_predictors()) %>%
   step_dummy(all_nominal_predictors())%>%
   step_nzv(all_predictors())
@@ -388,11 +421,11 @@ ggplot(mn_mod_output_lasso, aes(y = resid, x = hospitalized_rate)) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
 
-ggplot(mn_mod_output_lasso, aes(y = resid, x = fullvaccine_rate)) +
-    geom_point() +
-    geom_smooth(color = "blue", se = FALSE) +
-    geom_hline(yintercept = 0, color = "red") + 
-    theme_classic()
+#ggplot(mn_mod_output_lasso, aes(y = resid, x = fullvaccine_rate)) +
+ #   geom_point() +
+ #   geom_smooth(color = "blue", se = FALSE) +
+ #   geom_hline(yintercept = 0, color = "red") + 
+  #  theme_classic()
 
 ggplot(mn_mod_output_lasso, aes(y = resid, x = case_rate)) +
     geom_point() +
@@ -425,6 +458,18 @@ ggplot(mn_mod_output_lasso, aes(y = resid, x = emp_incq4)) +
     theme_classic()
 
 ggplot(mn_mod_output_lasso, aes(y = resid, x = spend_remoteservices)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_lasso, aes(y = resid, x = spend_hcs)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(mn_mod_output_lasso, aes(y = resid, x = emp_incbelowmed)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
