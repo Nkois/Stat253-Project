@@ -56,3 +56,17 @@ minnesota <- full_data1 %>%
 minnesota_cut <- minnesota %>%
   filter(Date > "2020-04-13")
 ```
+
+```{r}
+set.seed(123)
+
+gam_spec <- 
+  gen_additive_mod() %>%
+  set_engine(engine = 'ols') %>%
+  set_mode('regression') 
+
+gam_mod <- fit(gam_spec,
+    Grad.Rate ~ Private + s(Apps) + s(Top10perc) + s(Top25perc) + s(P.Undergrad) + s(Outstate) + s(Room.Board) + s(Books) + s(Personal) + s(PhD) + s(perc.alumni),
+    data = minnesota_cut
+)
+```
