@@ -58,6 +58,19 @@ minnesota_cut <- minnesota %>%
 ```
 
 ```{r}
+gam_rec <- recipe(gps_away_from_home ~ case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota_cut)
+
+gam_rec_new <- gam_rec %>%
+     step_ns(case_rate, deg_free = 4) %>% 
+     step_ns(hospitalized_rate, deg_free = 4) %>%
+     step_ns(emp_incq1, deg_free = 4) %>% 
+     step_ns(emp_incq2, deg_free = 4) %>%
+     step_ns(emp_incq3, deg_free = 4) %>% 
+     step_ns(emp_incq4, deg_free = 4) %>% 
+     step_ns(spend_remoteservices, deg_free = 4) 
+```
+
+```{r}
 set.seed(123)
 
 gam_spec <- 
@@ -65,7 +78,23 @@ gam_spec <-
   set_engine(engine = 'mgcv') %>%
   set_mode('regression') 
 
-gam_mod <- fit(gam_spec,
-    gps_away_from_home ~ case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices,
+gam_mod <- fit(lm_spec,
+    gam_rec,
     data = minnesota_cut)
 ```
+
+```{r}
+data_cv8 <- minnesota_cut %>% 
+    vfold_cv(v = 8)
+
+spline_wf <- workflow() %>%
+    add_model(lm_spec) %>%
+    add_recipe(gam_rec_new)
+
+fit_resamples(
+    spline_wf,
+    resamples = data_cv8, # cv folds
+    metrics = metric_set(mae,rmse,rsq)                     
+) %>% collect_metrics()
+```
+
