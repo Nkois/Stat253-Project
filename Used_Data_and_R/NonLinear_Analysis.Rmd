@@ -58,7 +58,8 @@ minnesota_cut <- minnesota %>%
 ```
 
 ```{r}
-gam_rec <- recipe(gps_away_from_home ~ case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota_cut)
+formula = gps_away_from_home ~ case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices
+gam_rec <- recipe(formula, data=minnesota_cut)
 
 gam_rec_new <- gam_rec %>%
      step_ns(case_rate, deg_free = 4) %>% 
@@ -93,7 +94,8 @@ gam_spec <-
   set_engine(engine = 'mgcv') %>%
   set_mode('regression') 
 
-gam_mod <- fit(spline_wf,
+gam_mod <- fit(gam_spec,
+               formula,
     data = minnesota_cut)
 ```
 
