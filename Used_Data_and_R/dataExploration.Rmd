@@ -18,6 +18,7 @@ library(broom)
 library(ggplot2)
 library(splines)
 library(tidymodels)
+library(gridExtra)
 tidymodels_prefer()
 
 COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
@@ -61,31 +62,31 @@ minnesota_cut <- minnesota %>%
 
 ```{r}
 #Visualizing non-employment variables by date
-gps <-ggplot(minnesota, aes(y = gps_away_from_home, x = Date)) +
+gps <-ggplot(minnesota_cut, aes(y = gps_away_from_home, x = Date)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
 
-vaccine <-ggplot(minnesota, aes(y = fullvaccine_rate, x = Date)) +
+vaccine <-ggplot(minnesota_cut, aes(y = fullvaccine_rate, x = Date)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
 
-case<-ggplot(minnesota, aes(y = case_rate, x = Date)) +
+case<-ggplot(minnesota_cut, aes(y = case_rate, x = Date)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
 
-hosp<-ggplot(minnesota, aes(y = hospitalized_rate, x = Date)) +
+hosp<-ggplot(minnesota_cut, aes(y = hospitalized_rate, x = Date)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()
 
-remote<-ggplot(minnesota, aes(y = spend_remoteservices, x = Date)) +
+remote<-ggplot(minnesota_cut, aes(y = spend_remoteservices, x = Date)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
@@ -97,28 +98,28 @@ grid.arrange(gps, vaccine, case, hosp, remote, ncol=2)
 
 ```{r}
 #Visualizing employment variables by date
-emp1 <- ggplot(minnesota, aes(y = emp_incq1, x = Date)) +
+emp1 <- ggplot(minnesota_cut, aes(y = emp_incq1, x = Date)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()+
     ylim(-0.45, 0.2)
 
-emp2 <-ggplot(minnesota, aes(y = emp_incq2, x = Date)) +
+emp2 <-ggplot(minnesota_cut, aes(y = emp_incq2, x = Date)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()+
     ylim(-0.45, 0.2)
 
-emp3 <-ggplot(minnesota, aes(y = emp_incq3, x = Date)) +
+emp3 <-ggplot(minnesota_cut, aes(y = emp_incq3, x = Date)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
     theme_classic()+
     ylim(-0.45, 0.2)
 
-emp4 <-ggplot(minnesota, aes(y = emp_incq4, x = Date)) +
+emp4 <-ggplot(minnesota_cut, aes(y = emp_incq4, x = Date)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
@@ -209,14 +210,14 @@ Here we can see the data combined. N/A slots represent cases were there was no v
 #OLS
 set.seed(123)
 
-folded_mn <- vfold_cv(minnesota, v = 6)
+folded_mn <- vfold_cv(minnesota_cut, v = 6)
 
 lm_spec <-
   linear_reg() %>%
   set_engine(engine = 'lm') %>%
   set_mode('regression')
 
-full_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota) %>%
+full_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota_cut) %>%
   step_normalize(all_numeric_predictors()) %>%
   step_dummy(all_nominal_predictors())%>%
   step_nzv(all_predictors())
@@ -233,14 +234,14 @@ mnFullMod_cv <- fit_resamples(mn_model_wf,
 
 mnFullMod_cv %>% collect_metrics(summarize=TRUE)
 
-mn_mod <- mn_model_wf %>% fit(data=minnesota)
+mn_mod <- mn_model_wf %>% fit(data=minnesota_cut)
 
 ```
 
 ```{r}
 mn_mod_output_OLS <- mn_mod %>%
-  predict(new_data=minnesota) %>%
-  bind_cols(minnesota)%>%
+  predict(new_data=minnesota_cut) %>%
+  bind_cols(minnesota_cut)%>%
     mutate(resid = gps_away_from_home - .pred)
 
 ggplot(mn_mod_output_OLS, aes(y = resid, x = hospitalized_rate)) +
@@ -342,7 +343,7 @@ best_penalty <- select_best(tune_res, metric = 'rmse') # choose penalty value ba
 # Fit Final Model
 final_wf <- finalize_workflow(mn_lasso_wf_tune, best_penalty) # incorporates penalty value to workflow
 
-final_fit <- fit(final_wf, data = minnesota)
+final_fit <- fit(final_wf, data = minnesota_cut)
 
 tidy(final_fit)
 
@@ -355,8 +356,8 @@ Here we can see that the Penalty for the lasso model has very little effect on t
 #Residual Plots
 #OLS
 mn_mod_output <- mn_mod %>%
-    predict(new_data = minnesota) %>%
-    bind_cols(minnesota)%>%
+    predict(new_data = minnesota_cut) %>%
+    bind_cols(minnesota_cut)%>%
     mutate(resid = gps_away_from_home - .pred)
  
 ggplot(mn_mod_output, aes(y = resid, x = .pred)) +
