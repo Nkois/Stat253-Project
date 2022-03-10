@@ -60,13 +60,13 @@ formula = gps_away_from_home ~ case_rate + hospitalized_rate + emp_incq1 + emp_i
 gam_rec <- recipe(formula, data=minnesota_cut)
 
 gam_rec_new <- gam_rec %>%
-     step_ns(case_rate, deg_free = 4) %>% 
-     step_ns(hospitalized_rate, deg_free = 6) %>%
-     step_ns(emp_incq1, deg_free = 100) %>% 
-     step_ns(emp_incq2, deg_free = 100) %>%
-     step_ns(emp_incq3, deg_free = 100) %>% 
-     step_ns(emp_incq4, deg_free = 100) %>% 
-     step_ns(spend_remoteservices, deg_free = 4) 
+     step_ns(case_rate, deg_free = 10) %>% 
+     step_ns(hospitalized_rate, deg_free = 20) %>%
+     step_ns(emp_incq1, deg_free = 20) %>% 
+     step_ns(emp_incq2, deg_free = 20) %>%
+     step_ns(emp_incq3, deg_free = 20) %>% 
+     step_ns(emp_incq4, deg_free = 10) %>% 
+     step_ns(spend_remoteservices, deg_free = 10) 
 ```
 
 ```{r creating_model}
@@ -103,17 +103,19 @@ fit_resamples(
 ) %>% collect_metrics()
 ```
 
-```{r}
-# Diagnostics: Check to see if the number of knots is large enough (if p-value is low, increase number of knots)
+```{r gam_check}
+# Diagnostics: Check to see if the number of knots is large enough 
 par(mfrow=c(2,2))
 gam_mod %>% pluck('fit') %>% mgcv::gam.check() 
 ```
 
-```{r}
+```{r gam_summary}
+# Parameter (linear) estimates and then Smooth Terms (H0: no relationship)
 gam_mod %>% pluck('fit') %>% summary()
 ```
 
-```{r}
+```{r gam_plots}
+# Looking at possible non-linear functions
 gam_mod %>% pluck('fit') %>% plot(all.terms = TRUE, pages = 1)
 ```
 
