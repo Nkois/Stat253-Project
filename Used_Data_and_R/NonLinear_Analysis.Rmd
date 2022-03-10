@@ -110,7 +110,7 @@ data_cv8 <- minnesota_cut %>%
 
 gam_wf <- workflow() %>%
     add_model(lm_spec) %>%
-    add_recipe(gam_rec_new)
+    add_recipe(gam_rec)
 
 fit_resamples(
     gam_wf,
