@@ -59,14 +59,13 @@ minnesota_cut <- minnesota %>%
 formula = gps_away_from_home ~ case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices
 gam_rec <- recipe(formula, data=minnesota_cut)
 
-#TODO: Change the deg_free to something that makes sense
 gam_rec_new <- gam_rec %>%
      step_ns(case_rate, deg_free = 4) %>% 
-     step_ns(hospitalized_rate, deg_free = 4) %>%
-     step_ns(emp_incq1, deg_free = 4) %>% 
-     step_ns(emp_incq2, deg_free = 4) %>%
-     step_ns(emp_incq3, deg_free = 4) %>% 
-     step_ns(emp_incq4, deg_free = 4) %>% 
+     step_ns(hospitalized_rate, deg_free = 6) %>%
+     step_ns(emp_incq1, deg_free = 100) %>% 
+     step_ns(emp_incq2, deg_free = 100) %>%
+     step_ns(emp_incq3, deg_free = 100) %>% 
+     step_ns(emp_incq4, deg_free = 100) %>% 
      step_ns(spend_remoteservices, deg_free = 4) 
 ```
 
@@ -85,7 +84,7 @@ lm_spec <-
   set_mode('regression')
 
 gam_mod <- fit(gam_spec,
-           gps_away_from_home ~ s(case_rate) + s(hospitalized_rate) + s(emp_incq1) + s(emp_incq2) + s(emp_incq3) + s(emp_incq4) + s(spend_remoteservices),
+           gps_away_from_home ~ s(case_rate) + s(hospitalized_rate, k=20) + s(emp_incq1, k=20) + s(emp_incq2, k=20) + s(emp_incq3, k=20) + s(emp_incq4) + s(spend_remoteservices),
     data = minnesota_cut)
 ```
 
