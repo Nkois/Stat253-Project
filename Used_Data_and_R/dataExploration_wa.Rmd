@@ -1,0 +1,488 @@
+---
+title: "dataExploration"
+author: "North Carpenter"
+date: "2/17/2022"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+# library statements 
+# read in data
+
+library(ISLR)
+library(dplyr)
+library(readr)
+library(broom)
+library(ggplot2)
+library(splines)
+library(tidymodels)
+tidymodels_prefer()
+
+COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
+
+Employment_State <- read.csv("Employment - State - Daily.csv", na.strings = ".")
+
+Mobility_State <- read.csv("Google Mobility - State - Daily.csv", na.strings = ".")
+  
+Spending_State <- read.csv("Affinity - State - Daily.csv", na.strings = ".")
+```
+
+
+```{r}
+# data cleaning
+
+COVID_State$Date<-as.Date(with(COVID_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+Employment_State$Date<-as.Date(with(Employment_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+Mobility_State$Date<-as.Date(with(Mobility_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+Spending_State$Date<-as.Date(with(Spending_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+full_data <- merge(merge(merge(COVID_State, Employment_State, by=c("Date","statefips")), Mobility_State, by=c("Date","statefips")), Spending_State, by=c("Date","statefips"))
+
+head(full_data)
+
+full_data1 <- full_data %>%
+  select(-year.x, -month.x, -day.x, - year.y, -month.y, -day.y, -year.x )
+
+
+washington <- full_data1 %>%
+  filter(statefips==53)
+  
+```
+
+```{r}
+washington_cut <- washington %>%
+  filter(Date > "2020-04-13")
+```
+
+```{r}
+#Grid Extra package
+library("gridExtra")                        # Load gridExtra package
+```
+
+```{r}
+#Visualizing non-employment variables by date
+gps <-ggplot(washington, aes(y = gps_away_from_home, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+vaccine <-ggplot(washington, aes(y = fullvaccine_rate, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+case<-ggplot(washington, aes(y = case_rate, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+hosp<-ggplot(washington, aes(y = hospitalized_rate, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+remote<-ggplot(washington, aes(y = spend_remoteservices, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+grid.arrange(gps, vaccine, case, hosp, remote, ncol=2)
+```
+
+
+```{r}
+#Visualizing employment variables by date
+emp1 <- ggplot(washington, aes(y = emp_incq1, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()+
+    ylim(-0.45, 0.2)
+
+emp2 <-ggplot(washington, aes(y = emp_incq2, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()+
+    ylim(-0.45, 0.2)
+
+emp3 <-ggplot(washington, aes(y = emp_incq3, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()+
+    ylim(-0.45, 0.2)
+
+emp4 <-ggplot(washington, aes(y = emp_incq4, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()+
+    ylim(-0.45, 0.2)
+
+grid.arrange(emp1, emp2, emp3, emp4, ncol=2)
+```
+
+```{r}
+#Visualizing non-employment variables by gps_away_from_home (using washington_cut)
+
+vaccine_corr <-ggplot(washington_cut, aes(y = gps_away_from_home, x = fullvaccine_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+case_corr<-ggplot(washington_cut, aes(y = gps_away_from_home, x = case_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+hosp_corr<-ggplot(washington_cut, aes(y = gps_away_from_home, x = hospitalized_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+remote_corr<-ggplot(washington_cut, aes(y = gps_away_from_home, x = spend_remoteservices)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+hosp_corr
+
+grid.arrange(vaccine_corr, case_corr, hosp_corr, remote_corr, ncol=2)
+```
+
+```{r}
+#Visualizing employment variables by gps_away_from_home (using washington_cut)
+emp1_corr <- ggplot(washington_cut, aes(y = gps_away_from_home, x = emp_incq1)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+    #+xlim(-0.45, 0.2)
+
+emp2_corr <-ggplot(washington_cut, aes(y = gps_away_from_home, x = emp_incq2)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+   #+ xlim(-0.45, 0.2)
+
+emp3_corr <-ggplot(washington_cut, aes(y = gps_away_from_home, x = emp_incq3)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+    #+xlim(-0.45, 0.2)
+
+emp4_corr <-ggplot(washington_cut, aes(y = gps_away_from_home, x = emp_incq4)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+    #+xlim(-0.45, 0.2)
+
+grid.arrange(emp1_corr, emp2_corr, emp3_corr, emp4_corr, ncol=2)
+```
+
+ggplot(wa_mod_output_lasso, aes(y = resid, x = Date)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+tmp <- wa_mod_output_lasso
+tmp$resid
+
+
+Here we can see the data combined. N/A slots represent cases were there was no value to enter or where data was missing.
+
+```{r}
+#OLS
+set.seed(123)
+
+folded_wa <- vfold_cv(washington, v = 6)
+
+lm_spec <-
+  linear_reg() %>%
+  set_engine(engine = 'lm') %>%
+  set_mode('regression')
+
+full_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=washington) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors())%>%
+  step_nzv(all_predictors())
+
+wa_model_wf <- workflow() %>%
+  add_recipe(full_rec) %>%
+  add_model(lm_spec)
+
+#CV is to see how well the model is doing
+waFullMod_cv <- fit_resamples(wa_model_wf,
+  resamples = folded_wa,
+  control = control_resamples(save_pred = TRUE),
+  metrics = metric_set(rmse, rsq, mae))
+
+waFullMod_cv %>% collect_metrics(summarize=TRUE)
+
+wa_mod <- wa_model_wf %>% fit(data=washington)
+
+```
+
+```{r}
+wa_mod_output_OLS <- wa_mod %>%
+  predict(new_data=washington) %>%
+  bind_cols(washington)%>%
+    mutate(resid = gps_away_from_home - .pred)
+
+ggplot(wa_mod_output_OLS, aes(y = resid, x = hospitalized_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_OLS, aes(y = resid, x = fullvaccine_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_OLS, aes(y = resid, x = case_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_OLS, aes(y = resid, x = emp_incq1)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_OLS, aes(y = resid, x = emp_incq2)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_OLS, aes(y = resid, x = emp_incq3)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_OLS, aes(y = resid, x = emp_incq4)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_OLS, aes(y = resid, x = spend_remoteservices)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+```
+
+Here we have the summery data for our basic best fit model. We can see that the standard error is about three hundredths of a percent; this is very low for predicting in a range of up to 10 % change but is more significant for most days when there is very little change in average movement.
+
+```{r}
+#LASSO using washington_cut
+set.seed(123)
+
+folded_wa <- vfold_cv(washington_cut, v = 6)
+
+lm_lasso_spec <- 
+  linear_reg() %>%
+  set_args(mixture = 1, penalty = tune()) %>% ## mixture = 1 indicates Lasso, we'll choose penalty later
+  set_engine(engine = 'glmnet') %>% 
+  set_mode('regression') 
+
+full_lasso_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate  + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=washington_cut) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors())%>%
+  step_nzv(all_predictors())
+
+wa_lasso_wf_tune <- workflow() %>%
+  add_recipe(full_lasso_rec) %>%
+  add_model(lm_lasso_spec)
+
+# Tune Model (trying a variety of values of Lambda penalty)
+penalty_grid <- grid_regular(
+  penalty(range = c(-15, -2)), #log10 transformed 10^-5 to 10^3
+  levels = 30)
+
+tune_res <- tune_grid( # new function for tuning parameters
+  wa_lasso_wf_tune, # workflow
+  resamples = folded_wa, # cv folds
+  metrics = metric_set(rmse, rsq, mae),
+  grid = penalty_grid # penalty grid defined above
+)
+
+# Visualize Model Evaluation Metrics from Tuning
+autoplot(tune_res) + theme_classic()
+
+# Summarize Model Evaluation Metrics (CV)
+collect_metrics(tune_res) %>%
+  filter(.metric == 'rmse') %>% # or choose mae
+  select(penalty, rmse = mean) 
+
+best_penalty <- select_best(tune_res, metric = 'rmse') # choose penalty value based on lowest mae or rmse
+
+
+
+# Fit Final Model
+final_wf <- finalize_workflow(wa_lasso_wf_tune, best_penalty) # incorporates penalty value to workflow
+
+final_fit <- fit(final_wf, data = washington)
+
+tidy(final_fit)
+
+```
+
+Here we can see that the Penalty for the lasso model has very little effect on the RMSE until it gets quite high. This is probably because some predictors are quickly eliminated and the more important ones are not removed until much later.
+
+
+```{r}
+#Residual Plots
+#OLS
+wa_mod_output <- wa_mod %>%
+    predict(new_data = washington) %>%
+    bind_cols(washington)%>%
+    mutate(resid = gps_away_from_home - .pred)
+ 
+ggplot(wa_mod_output, aes(y = resid, x = .pred)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+```
+
+Our model seems to be fairly randomly distributed around the middle line. There is, however, a concerning lack of predictions in the area above the 0 line around -0.09 and below the 0 line around -0.045.
+
+```{r}
+#LASSO
+wa_mod_output_lasso <- final_fit %>%
+  predict(new_data=washington) %>%
+  bind_cols(washington)%>%
+    mutate(resid = gps_away_from_home - .pred)
+
+ggplot(wa_mod_output_lasso, aes(y = .pred, x = gps_away_from_home)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_abline(intercept = 0, slope = 1) +
+    theme_classic()
+
+ggplot(wa_mod_output_lasso, aes(y = resid, x = hospitalized_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_lasso, aes(y = resid, x = fullvaccine_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_lasso, aes(y = resid, x = case_rate)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_lasso, aes(y = resid, x = emp_incq1)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_lasso, aes(y = resid, x = emp_incq2)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_lasso, aes(y = resid, x = emp_incq3)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_lasso, aes(y = resid, x = emp_incq4)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+ggplot(wa_mod_output_lasso, aes(y = resid, x = spend_remoteservices)) +
+    geom_point() +
+    geom_smooth(color = "blue", se = FALSE) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_classic()
+
+```
+
+Overall our residuals are presenting some strange trends. Some of our predictions are taking weird paths into some kind of very negative ark. Many of our predictors have strong curves that look like some kind of spline. Since some of them are eliminated very quickly by our LASSO method I would not worry about several of these but emp_incq3 seems to have some strange patterns in it we should probably investigate.
+
+```{r}
+best_penalty <- select_best(tune_res, metric = 'mae') # choose penalty value based on lowest cv mae
+best_penalty
+
+best_se_penalty <- select_by_one_std_err(tune_res, metric = 'mae', desc(penalty))
+```
+
+
+```{r}
+#COEFFICIENT PATHS 
+
+glmnet_output <- final_fit %>% extract_fit_parsnip() %>% pluck('fit') # get the original glwaet output
+
+lambdas <- glwaet_output$lambda
+coefs_lambdas <- 
+  coefficients(glwaet_output, s = lambdas )  %>% 
+  as.matrix() %>%  
+  t() %>% 
+  as.data.frame() %>% 
+  mutate(lambda = lambdas ) %>% 
+  select(lambda, everything(), -`(Intercept)`) %>% 
+  pivot_longer(cols = -lambda, 
+               names_to = "term", 
+               values_to = "coef") %>%
+  mutate(var = purrr::map_chr(stringr::str_split(term,"_"),~.[2]))
+
+coefs_lambdas %>%
+  ggplot(aes(x = lambda, y = coef, group = term, color = var)) +
+  geom_line() +
+  geom_vline(xintercept = best_se_penalty %>% pull(penalty), linetype = 'dashed') + 
+  theme_classic() + 
+  theme(legend.position = "bottom", legend.text=element_text(size=8))
+```
+
+```{r}
+#CHOOSING PREDICTORS
+final_fit %>% tidy() %>% filter(estimate != 0)
+
+```
+
+The predictor with the highest estimate (seen both in our tidy output and in the coefficient path visualization) is emp_incq3, which is the employment level for workers in the third quartile of the income distribution. However, this is part of a categorical variable, so we will consider employment level as the most important predictor. This makes contextual sense, as employment levels greatly influence how much time outside the house an individual can have. We arrived at the same outcome in LASSO as we did in OLS.
+
+
+
+
+
+
+
