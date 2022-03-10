@@ -5,7 +5,7 @@ date: "3/8/2022"
 output: html_document
 ---
 
-```{r}
+```{r libaries_and_data}
 # library statements 
 # read in data
 
@@ -28,9 +28,7 @@ Spending_State <- read.csv("Affinity - State - Daily.csv", na.strings = ".")
 ```
 
 
-```{r}
-# data cleaning
-
+```{r data_cleaning}
 COVID_State$Date<-as.Date(with(COVID_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
 
 Employment_State$Date<-as.Date(with(Employment_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
@@ -52,7 +50,7 @@ minnesota <- full_data1 %>%
   
 ```
 
-```{r}
+```{r final_data}
 minnesota_cut <- minnesota %>%
   filter(Date > "2020-04-13")
 ```
@@ -76,17 +74,17 @@ gam_rec_new <- gam_rec %>%
 set.seed(123)
 
 # Don't need to use gam_spec, can use lm_spec instead
-#gam_spec <- 
-#  gen_additive_mod() %>%
-#  set_engine(engine = 'mgcv') %>%
-#  set_mode('regression') 
+gam_spec <- 
+  gen_additive_mod() %>%
+  set_engine(engine = 'mgcv') %>%
+  set_mode('regression') 
 
 lm_spec <-
   linear_reg() %>%
   set_engine(engine = 'lm') %>%
   set_mode('regression')
 
-gam_mod <- fit(lm_spec,
+gam_mod <- fit(gam_spec,
                formula,
     data = minnesota_cut)
 ```
@@ -104,6 +102,12 @@ fit_resamples(
     resamples = data_cv8, # cv folds
     metrics = metric_set(mae,rmse,rsq)                     
 ) %>% collect_metrics()
+```
+
+```{r}
+# Diagnostics: Check to see if the number of knots is large enough (if p-value is low, increase number of knots)
+par(mfrow=c(2,2))
+gam_mod %>% pluck('fit') %>% mgcv::gam.check() 
 ```
 
 
