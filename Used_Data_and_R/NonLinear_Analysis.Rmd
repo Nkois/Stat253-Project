@@ -55,20 +55,6 @@ minnesota_cut <- minnesota %>%
   filter(Date > "2020-04-13")
 ```
 
-```{r recipe}
-formula = gps_away_from_home ~ case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices
-gam_rec <- recipe(formula, data=minnesota_cut)
-
-gam_rec_new <- gam_rec %>%
-     step_ns(case_rate, deg_free = 10) %>% 
-     step_ns(hospitalized_rate, deg_free = 20) %>%
-     step_ns(emp_incq1, deg_free = 20) %>% 
-     step_ns(emp_incq2, deg_free = 20) %>%
-     step_ns(emp_incq3, deg_free = 20) %>% 
-     step_ns(emp_incq4, deg_free = 10) %>% 
-     step_ns(spend_remoteservices, deg_free = 10) 
-```
-
 ```{r creating_model}
 set.seed(123)
 
@@ -88,21 +74,6 @@ gam_mod <- fit(gam_spec,
     data = minnesota_cut)
 ```
 
-```{r metrics}
-data_cv8 <- minnesota_cut %>% 
-    vfold_cv(v = 8)
-
-spline_wf <- workflow() %>%
-    add_model(lm_spec) %>%
-    add_recipe(gam_rec_new)
-
-fit_resamples(
-    spline_wf,
-    resamples = data_cv8, # cv folds
-    metrics = metric_set(mae,rmse,rsq)                     
-) %>% collect_metrics()
-```
-
 ```{r gam_check}
 # Diagnostics: Check to see if the number of knots is large enough 
 par(mfrow=c(2,2))
@@ -119,4 +90,41 @@ gam_mod %>% pluck('fit') %>% summary()
 gam_mod %>% pluck('fit') %>% plot(all.terms = TRUE, pages = 1)
 ```
 
+```{r recipe}
+formula = gps_away_from_home ~ case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices
+gam_rec <- recipe(formula, data=minnesota_cut)
 
+gam_rec_new <- gam_rec %>%
+     step_ns(case_rate, deg_free = 6) %>% 
+     step_ns(hospitalized_rate, deg_free = 9) %>%
+     step_ns(emp_incq1, deg_free = 8) %>% 
+     step_ns(emp_incq2, deg_free = 9) %>%
+     step_ns(emp_incq3, deg_free = 9) %>% 
+     step_ns(emp_incq4, deg_free = 7) %>% 
+     step_ns(spend_remoteservices, deg_free = 6) 
+```
+
+```{r metrics}
+data_cv8 <- minnesota_cut %>% 
+    vfold_cv(v = 8)
+
+gam_wf <- workflow() %>%
+    add_model(lm_spec) %>%
+    add_recipe(gam_rec_new)
+
+fit_resamples(
+    gam_wf,
+    resamples = data_cv8, # cv folds
+    metrics = metric_set(mae,rmse,rsq)                     
+) %>% collect_metrics()
+
+gam_new_wf <- workflow() %>%
+    add_model(lm_spec) %>%
+    add_recipe(gam_rec_new)
+
+fit_resamples(
+    gam_new_wf,
+    resamples = data_cv8, # cv folds
+    metrics = metric_set(mae,rmse,rsq)                     
+) %>% collect_metrics()
+```
