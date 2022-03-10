@@ -73,7 +73,7 @@ gam_rec_new <- gam_rec %>%
 ```{r creating_model}
 set.seed(123)
 
-# Don't need to use gam_spec, can use lm_spec instead
+# Don't necessarily need to use gam_spec, can use lm_spec instead
 gam_spec <- 
   gen_additive_mod() %>%
   set_engine(engine = 'mgcv') %>%
@@ -85,7 +85,7 @@ lm_spec <-
   set_mode('regression')
 
 gam_mod <- fit(gam_spec,
-               formula,
+           gps_away_from_home ~ s(case_rate) + s(hospitalized_rate) + s(emp_incq1) + s(emp_incq2) + s(emp_incq3) + s(emp_incq4) + s(spend_remoteservices),
     data = minnesota_cut)
 ```
 
@@ -108,6 +108,14 @@ fit_resamples(
 # Diagnostics: Check to see if the number of knots is large enough (if p-value is low, increase number of knots)
 par(mfrow=c(2,2))
 gam_mod %>% pluck('fit') %>% mgcv::gam.check() 
+```
+
+```{r}
+gam_mod %>% pluck('fit') %>% summary()
+```
+
+```{r}
+gam_mod %>% pluck('fit') %>% plot(all.terms = TRUE, pages = 1)
 ```
 
 
