@@ -64,6 +64,13 @@ minnesota_cut <- minnesota %>%
 ```
 
 ```{r}
+full_cut <- full_data1 %>%
+  filter(Date > "2020-04-13")%>%
+  select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed)
+```
+
+
+```{r}
 #Visualizing non-employment variables by date
 gps <-ggplot(minnesota_cut, aes(y = gps_away_from_home, x = Date)) +
     geom_point() +
