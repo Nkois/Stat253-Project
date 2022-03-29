@@ -66,9 +66,187 @@ full_cut <- full_data1 %>%
   select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed)%>%
   left_join(regions_cut, by=c("statefips"="fips.x"))
 ```
+```{r}
+full_cut <- full_cut[,-1]
+full_cut <- full_cut %>% na.omit() #there are 6 missing values in two variables
+full_cut <- full_cut %>%
+  mutate(Region = factor(Region)) %>% #make sure outcome is factor
+  mutate(across(where(is.character), as.factor))
+```
+
+
+##  Bagging
+
+### Model Specification
+
+Recipes first this time...
+
+```{r}
+spade_rec <- recipe(Region ~ ., data = full_cut) %>%
+  step_nzv(all_predictors()) %>%
+  step_novel(all_nominal_predictors()) %>%
+  step_dummy(all_nominal_predictors()) 
+
+# Find out the Total Number of Predictors
+(spade_rec %>% prep(full_cut) %>% juice() %>% ncol()) - 1 #subtract 1 for outcome
+```
+
+```{r}
+# Bagging Model Spec
+bag_spec <- rand_forest() %>%
+  set_engine(engine = 'ranger') %>% 
+  set_args(mtry = 61, # Specify total number of predictors (use prep code above)
+           trees = 50, # Number of trees/bags (bootstrap aggregation)
+           min_n = 2,# Min observations to split (want small to create larger trees)
+           probability = FALSE) %>% # For now, we want hard predictions, not soft
+  set_mode('classification') # change this for regression tree
+
+bag_spec
+
+
+region_bag_wf <- workflow() %>%
+  add_model(bag_spec) %>%
+  add_recipe(spade_rec)
+```
+
+
+
+### Fit Models
+
+```{r}
+set.seed(123) # Randomness in the bootstrap samples
+
+region_bag_fit <- region_bag_wf %>%
+  fit(data = full_cut)
+
+region_bag_fit # check out OOB prediction error (accuracy = 1 - OOB prediction error)
+```
+
+
+### Evaluate Models
+
+To  calculate OOB metrics, we need to get the OOB predictions from the fit model.
+
+```{r}
+region_bag_OOB_output <- tibble(
+  .pred_class = region_bag_fit %>% extract_fit_engine() %>% pluck('predictions'),
+  Region = full_cut %>% pull(Region))
+
+bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
+
+region_bag_OOB_output %>% 
+  bag_metrics(truth = Region, estimate = .pred_class)
+```
+
+To estimate AUC of ROC curve based on OOB predictions, we'll need to refit the model to get the predicted probabilities. 
+
+```{r}
+set.seed(123) # to get the same bootstrap samples, use same seed
+
+region_bag_fit2 <- region_bag_wf %>%
+  update_model(bag_spec %>% set_args(probability = TRUE)) %>% # Now, we want soft (probability) predictions
+  fit(data = full_cut)
+
+region_bag_fit2
+```
+
+```{r}
+region_bag_OOB_output2 <- bind_cols(
+  region_bag_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
+  full_cut %>% select(Region))
+
+region_bag_OOB_output2 %>% 
+  roc_curve(Region, Yes, event_level = "second") %>% autoplot()
+
+region_bag_OOB_output2 %>% 
+  roc_auc(Region, Yes, event_level = "second") #Area under Curve
+```
+
+
+##  Random Forest
+
+### Model Specification
 
 
 ```{r}
+rf_spec <- rand_forest() %>%
+  set_engine(engine = 'ranger') %>% 
+  set_args(mtry = NULL, # size of random subset of variables; default is floor(sqrt(ncol(x)))
+           trees = 50, # Number of bags
+           min_n = 2,
+           probability = FALSE, # want hard predictions first
+           importance = 'impurity') %>% 
+  set_mode('classification') # change this for regression tree
 
+rf_spec
+
+
+heart_rf_wf <- workflow() %>%
+  add_model(rf_spec) %>%
+  add_recipe(heart_rec)
+```
+
+
+
+### Fit Models
+
+```{r}
+set.seed(123)
+heart_rf_fit <- heart_rf_wf %>%
+  fit(data = heart)
+
+heart_rf_fit # check out OOB prediction error (accuracy = 1 - OOB prediction error)
+```
+
+
+### Evaluate Models
+
+To  calculate OOB metrics, we need to get the OOB predictions from the fit model.
+
+```{r}
+heart_rf_OOB_output <- tibble(
+  .pred_class = heart_rf_fit %>% extract_fit_engine() %>% pluck('predictions'),
+  AHD = heart %>% pull(AHD))
+
+bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
+
+heart_rf_OOB_output %>% 
+  bag_metrics(truth = AHD, estimate = .pred_class)
+```
+
+To estimate AUC of ROC curve using OOB predictions, we'll need to refit the model to get the predicted probabilities. 
+
+```{r}
+set.seed(123) #to get the same bootstrap samples, use same seed
+heart_rf_fit2 <- heart_rf_wf %>%
+  update_model(rf_spec %>% set_args(probability = TRUE)) %>%
+  fit(data = heart)
+
+heart_rf_fit2
+```
+
+```{r}
+heart_rf_OOB_output2 <- bind_cols(
+  heart_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
+  heart %>% select(AHD))
+
+heart_rf_OOB_output2 %>% 
+  roc_curve(AHD, Yes, event_level = "second") %>% autoplot()
+
+heart_rf_OOB_output2 %>% 
+  roc_auc(AHD, Yes, event_level = "second") #Area under Curve
+```
+
+### Variable Importance
+
+
+```{r}
+library(vip) #install.packages('vip')
+
+heart_rf_fit %>% extract_fit_engine() %>% vip() #based on impurity
+
+heart_rf_wf %>% #based on permutation
+  update_model(rf_spec %>% set_args(importance = "permutation")) %>%
+  fit(data = heart) %>% extract_fit_engine() %>% vip()
 ```
 
