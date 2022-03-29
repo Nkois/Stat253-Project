@@ -56,14 +56,15 @@ full_data1 <- full_data %>%
   select(-year.x, -month.x, -day.x, - year.y, -month.y, -day.y, -year.x )
 
 regions <- regions%>%
-  inner_join(fips, by=c("State.Code"="abb"))%>%
+  inner_join(fips, by=c("State.Code"="abb"))
+regions_cut <- regions%>%
   select(fips.x, State.Code, Region, Division)
 
 #created dataset with the fips code
 full_cut <- full_data1 %>%
   filter(Date > "2020-04-13")%>%
   select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed)%>%
-  left_join(regions, by=c("statefips"="fips.x"))
+  left_join(regions_cut, by=c("statefips"="fips.x"))
 ```
 
 
