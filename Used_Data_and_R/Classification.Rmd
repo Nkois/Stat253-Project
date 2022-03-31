@@ -156,10 +156,10 @@ region_bag_OOB_output2 <- bind_cols(
   full_cut %>% select(Region))
 
 region_bag_OOB_output2 %>% 
-  roc_curve(Region, Yes, event_level = "second") %>% autoplot()
+  roc_curve(Region, c(South, West, Midwest, Northeast), event_level = "second") %>% autoplot()
 
 region_bag_OOB_output2 %>% 
-  roc_auc(Region, Yes, event_level = "second") #Area under Curve
+  roc_auc(Region, c(South, West, Midwest, Northeast), event_level = "second") #Area under Curve
 ```
 
 
@@ -231,10 +231,10 @@ region_rf_OOB_output2 <- bind_cols(
   full_cut%>% select(Region))
 
 region_rf_OOB_output2 %>% 
-  roc_curve(Region, Yes, event_level = "second") %>% autoplot()
+  roc_curve(Region, c(South, West, Midwest, Northeast), event_level = "second") %>% autoplot()
 
 region_rf_OOB_output2 %>% 
-  roc_auc(Region, Yes, event_level = "second") #Area under Curve
+  roc_auc(Region, c(South, West, Midwest, Northeast), event_level = "second") #Area under Curve
 ```
 
 ### Variable Importance
