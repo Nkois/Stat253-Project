@@ -181,9 +181,9 @@ rf_spec <- rand_forest() %>%
 rf_spec
 
 
-heart_rf_wf <- workflow() %>%
+region_rf_wf <- workflow() %>%
   add_model(rf_spec) %>%
-  add_recipe(heart_rec)
+  add_recipe(spade_rec)
 ```
 
 
@@ -192,10 +192,10 @@ heart_rf_wf <- workflow() %>%
 
 ```{r}
 set.seed(123)
-heart_rf_fit <- heart_rf_wf %>%
-  fit(data = heart)
+region_rf_fit <- region_rf_wf %>%
+  fit(data = full_cut)
 
-heart_rf_fit # check out OOB prediction error (accuracy = 1 - OOB prediction error)
+region_rf_fit # check out OOB prediction error (accuracy = 1 - OOB prediction error)
 ```
 
 
@@ -204,37 +204,37 @@ heart_rf_fit # check out OOB prediction error (accuracy = 1 - OOB prediction err
 To  calculate OOB metrics, we need to get the OOB predictions from the fit model.
 
 ```{r}
-heart_rf_OOB_output <- tibble(
-  .pred_class = heart_rf_fit %>% extract_fit_engine() %>% pluck('predictions'),
-  AHD = heart %>% pull(AHD))
+region_rf_OOB_output <- tibble(
+  .pred_class = region_rf_fit %>% extract_fit_engine() %>% pluck('predictions'),
+  Region = full_cut %>% pull(Region))
 
 bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
 
-heart_rf_OOB_output %>% 
-  bag_metrics(truth = AHD, estimate = .pred_class)
+region_rf_OOB_output %>% 
+  bag_metrics(truth = Region, estimate = .pred_class)
 ```
 
 To estimate AUC of ROC curve using OOB predictions, we'll need to refit the model to get the predicted probabilities. 
 
 ```{r}
 set.seed(123) #to get the same bootstrap samples, use same seed
-heart_rf_fit2 <- heart_rf_wf %>%
+region_rf_fit2 <- region_rf_wf %>%
   update_model(rf_spec %>% set_args(probability = TRUE)) %>%
-  fit(data = heart)
+  fit(data = full_cut)
 
-heart_rf_fit2
+region_rf_fit2
 ```
 
 ```{r}
-heart_rf_OOB_output2 <- bind_cols(
-  heart_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
-  heart %>% select(AHD))
+region_rf_OOB_output2 <- bind_cols(
+  region_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
+  full_cut%>% select(Region))
 
-heart_rf_OOB_output2 %>% 
-  roc_curve(AHD, Yes, event_level = "second") %>% autoplot()
+region_rf_OOB_output2 %>% 
+  roc_curve(Region, Yes, event_level = "second") %>% autoplot()
 
-heart_rf_OOB_output2 %>% 
-  roc_auc(AHD, Yes, event_level = "second") #Area under Curve
+region_rf_OOB_output2 %>% 
+  roc_auc(Region, Yes, event_level = "second") #Area under Curve
 ```
 
 ### Variable Importance
@@ -243,10 +243,10 @@ heart_rf_OOB_output2 %>%
 ```{r}
 library(vip) #install.packages('vip')
 
-heart_rf_fit %>% extract_fit_engine() %>% vip() #based on impurity
+region_rf_fit %>% extract_fit_engine() %>% vip() #based on impurity
 
-heart_rf_wf %>% #based on permutation
+region_rf_wf %>% #based on permutation
   update_model(rf_spec %>% set_args(importance = "permutation")) %>%
-  fit(data = heart) %>% extract_fit_engine() %>% vip()
+  fit(data = full_cut) %>% extract_fit_engine() %>% vip()
 ```
 
