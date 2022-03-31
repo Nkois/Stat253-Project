@@ -57,15 +57,20 @@ full_data1 <- full_data %>%
 
 regions <- regions%>%
   inner_join(fips, by=c("State.Code"="abb"))
-regions_cut <- regions%>%
-  select(fips.x, State.Code, Region, Division)
 
 #created dataset with the fips code
 full_cut <- full_data1 %>%
   filter(Date > "2020-04-13")%>%
   select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed)%>%
-  left_join(regions_cut, by=c("statefips"="fips.x"))
+  left_join(regions, by=c("statefips"="fips"))
+
+full_cut <- full_cut %>%
+  select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed,State.Code, Region, Division)
+
+
 ```
+
+
 ```{r}
 full_cut <- full_cut[,-1]
 full_cut <- full_cut %>% na.omit() #there are 6 missing values in two variables
@@ -83,6 +88,7 @@ Recipes first this time...
 
 ```{r}
 spade_rec <- recipe(Region ~ ., data = full_cut) %>%
+  step_rm(State.Code, Division)%>%
   step_nzv(all_predictors()) %>%
   step_novel(all_nominal_predictors()) %>%
   step_dummy(all_nominal_predictors()) 
