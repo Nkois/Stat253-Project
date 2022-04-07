@@ -256,3 +256,51 @@ region_rf_wf %>% #based on permutation
   fit(data = full_cut) %>% extract_fit_engine() %>% vip()
 ```
 
+### Hierarchical Clustering
+
+```{r}
+set.seed(253)
+full_cut <- full_cut %>%
+    slice_sample(n = 50)
+
+# Select the variables to be used in clustering
+full_cut_sub <- full_cut %>%
+    select(gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed)
+
+# Summary statistics for the variables
+summary(full_cut_sub)
+
+# Compute a distance matrix on the scaled data
+dist_mat_scaled <- dist(scale(full_cut_sub))
+
+# The (scaled) distance matrix is the input to hclust()
+# The method argument indicates the linkage type
+hc_complete <- hclust(dist_mat_scaled, method = "complete")
+hc_single <- hclust(dist_mat_scaled, method = "single")
+hc_average <- hclust(dist_mat_scaled, method = "average")
+hc_centroid <- hclust(dist_mat_scaled, method = "centroid")
+
+# Plot dendrograms
+plot(hc_complete)
+plot(hc_single)
+plot(hc_average)
+plot(hc_centroid)
+
+#plot with labels
+plot(hc_complete, labels = full_cut$Region)
+
+#scatterplot with colors
+full_cut <- full_cut %>%
+    mutate(
+        hclust_height3 = factor(cutree(hc_complete, h = 3)), # Cut at height (h) 3
+        hclust_num6 = factor(cutree(hc_complete, k = 6)) # Cut into 6 clusters (k)
+    )
+
+
+ggplot(full_cut, aes(x=gps_away_from_home, y=case_rate, color=hclust_height3))+
+    geom_point()+
+    theme_bw()
+
+```
+
+
