@@ -278,17 +278,28 @@ library(tidymodels)
 library(probably) #install.packages('probably')
 tidymodels_prefer()
 
-set.seed(___) # Pick your favorite number to fill in the parentheses
+set.seed(253) # Pick your favorite number to fill in the parentheses
 ```
+
+```{r}
+full_cut <- full_cut%>%
+  mutate(isSouth = if_else(Region == "South", 1, 0))
+```
+
 
 Then adapt the following code to fit a logistic regression model:
 
 ```{r}
 # Make sure you set reference level (the outcome you are NOT interested in)
-data <- data %>%
-  mutate(outcome = relevel(outcome, ref='failure')) #set reference level
+#full_cut <- full_cut %>%
+ # mutate(isSouth = relevel(0, ref='failure')) #set reference level
 
-data_cv10 <- vfold_cv(data, v = 10)
+full_cut$isSouth <- as.factor(full_cut$isSouth)
+
+full_cut_sub3 <- full_cut %>%
+  select(gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices,spend_hcs, emp_incbelowmed, isSouth)
+
+data_cv10 <- vfold_cv(full_cut_sub3, v = 10)
 
 # Logistic Regression Model Spec
 logistic_spec <- logistic_reg() %>%
@@ -296,9 +307,10 @@ logistic_spec <- logistic_reg() %>%
     set_mode('classification')
 
 # Recipe
-logistic_rec <- recipe(outcome ~ ., data = data) %>%
+logistic_rec <- recipe(isSouth ~ ., data = full_cut_sub3) %>%
     step_normalize(all_numeric_predictors()) %>% 
-    step_dummy(all_nominal_predictors())
+    step_dummy(all_nominal_predictors())#%>%
+  #step_rm(isSouth)
 
 # Workflow (Recipe + Model)
 log_wf <- workflow() %>% 
@@ -306,7 +318,7 @@ log_wf <- workflow() %>%
     add_model(logistic_spec) 
 
 # Fit Model to Training Data
-log_fit <- fit(log_wf, data = data)
+log_fit <- fit(log_wf, data = full_cut_sub3)
 ```
 
 <br>
@@ -327,26 +339,26 @@ log_fit %>% tidy() %>%
 
 ```{r}
 # Make soft (probability) predictions
-predict(log_fit, new_data = ___, type = "prob")
+predict(log_fit, new_data = full_cut_sub3, type = "prob")
 
 # Make hard (class) predictions (using a default 0.5 probability threshold)
-predict(log_fit, new_data = ___, type = "class")
+predict(log_fit, new_data = full_cut_sub3, type = "class")
 ```
 
 **Evaluating the logistic model on training data**
 
 ```{r}
 # Soft predictions
-logistic_output <-  data %>%
-  bind_cols(predict(log_fit, new_data = data, type = 'prob')) 
+logistic_output <-  full_cut_sub3 %>%
+  bind_cols(predict(log_fit, new_data = full_cut_sub3, type = 'prob')) 
 
 # Hard predictions (you pick threshold)
 logistic_output <- logistic_output %>%
-  mutate(.pred_class = make_two_class_pred(.pred_REFLEVEL, levels(outcome), threshold = .8)) #Try changing threshold (.5, 0, 1, .2, .8)
+  mutate(.pred_class = make_two_class_pred(.pred_REFLEVEL, levels(isSouth), threshold = .8)) #Try changing threshold (.5, 0, 1, .2, .8)
 
 # Visualize Soft Predictions
 logistic_output %>%
-  ggplot(aes(x = outcome, y = .pred_OUTCOME)) +
+  ggplot(aes(x = isSouth, y = .pred_OUTCOME)) +
   geom_boxplot() + 
   geom_hline(yintercept = 0.5, color='red') +  # try changing threshold
   labs(y = 'Predicted Probability of Outcome', x = 'Observed Outcome') +
