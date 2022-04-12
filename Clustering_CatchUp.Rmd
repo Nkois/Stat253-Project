@@ -37,3 +37,63 @@ ggplot(wine_sub2, aes(y=Alcohol, x=Malic_Acid, color=kclust_3_3vars)) +
     geom_point()
 ```
 
+```{r}
+# Remove observations with missing data on key variables
+wine <- wine %>%
+    filter(!is.na(Alcohol), !is.na(Malic_Acid), !is.na(Flavanoids))
+
+kmeans(wine, centers = 3)
+
+library(cluster)
+pam(daisy(wine), k = 3)
+
+hclust(daisy(wine))
+```
+
+```{r}
+# Random subsample of 20 wines
+set.seed(253)
+wine <- wine %>%
+    slice_sample(n = 20)
+
+# Select the variables to be used in clustering
+wine_sub3 <- wine %>%
+    select(Alcohol, Malic_Acid, Flavanoids)
+
+# Summary statistics for the variables
+summary(wine_sub3)
+
+# Compute a distance matrix on the scaled data
+dist_mat_scaled <- dist(scale(wine_sub3))
+
+# The (scaled) distance matrix is the input to hclust()
+# The method argument indicates the linkage type
+hc_complete <- hclust(dist_mat_scaled, method = "complete")
+hc_single <- hclust(dist_mat_scaled, method = "single")
+hc_average <- hclust(dist_mat_scaled, method = "average")
+hc_centroid <- hclust(dist_mat_scaled, method = "centroid")
+
+# Plot dendrograms
+plot(hc_complete)
+plot(hc_single)
+plot(hc_average)
+plot(hc_centroid)
+```
+
+```{r}
+plot(hc_complete, labels = wine_sub3$Alcohol)
+```
+
+```{r}
+wine <- wine %>%
+    mutate(
+        hclust_height3 = factor(cutree(hc_complete, h = 3)), # Cut at height (h) 3
+        hclust_num3 = factor(cutree(hc_complete, k = 6)) # Cut into 6 clusters (k)
+    )
+
+
+ggplot(wine, aes(x = Alcohol, y = Malic_Acid, color = hclust_num3)) +
+    geom_point() + 
+    #geom_text(aes(label = 1:5), vjust = 1.5) + 
+    theme_classic()
+```
