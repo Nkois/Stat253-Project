@@ -14,20 +14,6 @@ wine <- read_csv('wine.csv')
 
 ### K-Means Clustering
 
-```{r}
-
-# Run k-means for k = centers = 3
-set.seed(253)
-kclust_k3 <- kmeans(wine, centers = 3)
-
-# Display the cluter assignments
-kclust_k3$cluster
-
-# Add a variable (kclust_3) to the original dataset 
-# containing the cluster assignments
-wine <- wine %>%
-    mutate(kclust_3 = factor(kclust_k3$cluster))
-```
 
 ```{r}
 # Look at summary statistics of the 3 variables
@@ -37,7 +23,17 @@ summary(wine)
 set.seed(253)
 kclust_k3_3vars <- kmeans(scale(wine), centers = 3)
 
-wine <- wine %>%
+wine_sub2 <- wine %>%
     mutate(kclust_3_3vars = factor(kclust_k3_3vars$cluster))
+
+#can type out more variables if you want to see
+wine_sub2 %>%
+    group_by(kclust_3_3vars) %>%
+    summarize(across(c(Alcohol, Malic_Acid, Ash, Ash_Alcanity), mean))
+```
+```{r}
+#vizualizing two random variables
+ggplot(wine_sub2, aes(y=Alcohol, x=Malic_Acid, color=kclust_3_3vars)) +
+    geom_point()
 ```
 
