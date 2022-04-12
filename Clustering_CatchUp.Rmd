@@ -37,6 +37,8 @@ ggplot(wine_sub2, aes(y=Alcohol, x=Malic_Acid, color=kclust_3_3vars)) +
     geom_point()
 ```
 
+### Hierarchical Clustering
+
 ```{r}
 # Remove observations with missing data on key variables
 wine <- wine %>%
@@ -88,7 +90,7 @@ plot(hc_complete, labels = wine_sub3$Alcohol)
 wine <- wine %>%
     mutate(
         hclust_height3 = factor(cutree(hc_complete, h = 3)), # Cut at height (h) 3
-        hclust_num3 = factor(cutree(hc_complete, k = 6)) # Cut into 6 clusters (k)
+        hclust_num3 = factor(cutree(hc_complete, k = 3)) # Cut into 6 clusters (k)
     )
 
 
