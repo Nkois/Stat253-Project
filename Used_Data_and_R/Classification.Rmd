@@ -1,6 +1,6 @@
 ---
 title: "Classification"
-author: "Sar"
+author: "Sar, North, Henry, Quinn"
 date: "3/29/2022"
 output: html_document
 ---
@@ -22,6 +22,7 @@ library(splines)
 library(tidymodels)
 library(gridExtra)
 library(maps)
+library(caret)
 tidymodels_prefer()
 
 COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
@@ -178,7 +179,7 @@ region_bag_OOB_output2 %>%
 rf_spec <- rand_forest() %>%
   set_engine(engine = 'ranger') %>% 
   set_args(mtry = NULL, # size of random subset of variables; default is floor(sqrt(ncol(x)))
-           trees = 50, # Number of bags
+           trees = 500, # Number of bags
            min_n = 2,
            probability = FALSE, # want hard predictions first
            importance = 'impurity') %>% 
@@ -216,8 +217,7 @@ region_rf_OOB_output <- tibble(
 
 bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
 
-region_rf_OOB_output %>% 
-  bag_metrics(truth = Region, estimate = .pred_class)
+
 ```
 
 To estimate AUC of ROC curve using OOB predictions, we'll need to refit the model to get the predicted probabilities. 
@@ -236,11 +236,22 @@ region_rf_OOB_output2 <- bind_cols(
   region_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
   full_cut%>% select(Region))
 
+region_rf_OOB_output3 <- bind_cols(
+  .pred_class = region_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions'), 
+  Region = full_cut %>% pull(Region))
+ 
+
+
+
 region_rf_OOB_output2 %>% 
   roc_curve(Region, c(South, West, Midwest, Northeast), event_level = "second") %>% autoplot()
 
 region_rf_OOB_output2 %>% 
   roc_auc(Region, c(South, West, Midwest, Northeast), event_level = "second") #Area under Curve
+
+
+
+
 ```
 
 ### Variable Importance
@@ -302,5 +313,13 @@ ggplot(full_cut, aes(x=gps_away_from_home, y=case_rate, color=hclust_height3))+
     theme_bw()
 
 ```
+
+
+
+
+
+Quinn Frankovsky - Reflection: 
+I would assume that pillar 2 and pillar 4 are the hardest to get right for groups or companies that rely on data analytics, pillar 2 representing methods and pillar 4 representing engagement. I say pillar 2 because the methods or algorithms that we have learned about are greatly different from each other in terms of effectiveness, style, and other characteristics. In addition to their own quirks, each individual algorithm has their benefits and drawbacks depending on what is required. This can make selection of the algorithms quite tricky in some cases. In addition, the data that is used is critical to the outcome that is required. Inherent biases play into data collection, which severely alter the outcome of the algorithm. Lastly, pillar 4 is quite tricky as well. It is easier said than done, I imagine, to convince the public of your outcomes when they do not have the same analytical skill set. Making sure that your conclusions are crystal clear is very important to convincing the public of the outcome. 
+
 
 

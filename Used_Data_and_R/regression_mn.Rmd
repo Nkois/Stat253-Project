@@ -21,6 +21,7 @@ library(broom)
 library(ggplot2)
 library(splines)
 library(tidymodels)
+library(maps)
 tidymodels_prefer()
 
 COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
@@ -30,6 +31,8 @@ Employment_State <- read.csv("Employment - State - Daily.csv", na.strings = ".")
 Mobility_State <- read.csv("Google Mobility - State - Daily.csv", na.strings = ".")
   
 Spending_State <- read.csv("Affinity - State - Daily.csv", na.strings = ".")
+
+view(state.fips)
 ```
 
 
