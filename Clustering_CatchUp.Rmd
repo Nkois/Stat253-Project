@@ -6,6 +6,8 @@ output: html_document
 ---
 ```{r}
 
+library(readr)
+wine <- read_csv('wine.csv')
 
 ```
 
