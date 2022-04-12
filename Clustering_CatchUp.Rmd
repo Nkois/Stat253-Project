@@ -54,7 +54,7 @@ hclust(daisy(wine))
 # Random subsample of 20 wines
 set.seed(253)
 wine <- wine %>%
-    slice_sample(n = 20)
+    slice_sample(n = 173)
 
 # Select the variables to be used in clustering
 wine_sub3 <- wine %>%
@@ -88,12 +88,12 @@ plot(hc_complete, labels = wine_sub3$Alcohol)
 wine <- wine %>%
     mutate(
         hclust_height3 = factor(cutree(hc_complete, h = 3)), # Cut at height (h) 3
-        hclust_num3 = factor(cutree(hc_complete, k = 6)) # Cut into 6 clusters (k)
+        hclust_num3 = factor(cutree(hc_complete, k = 3)) # Cut into 6 clusters (k)
     )
 
 
 ggplot(wine, aes(x = Alcohol, y = Malic_Acid, color = hclust_num3)) +
     geom_point() + 
-    #geom_text(aes(label = 1:5), vjust = 1.5) + 
+    labs(title = "Wine Clustering Based on All Variables", color = "Cluster Number") +
     theme_classic()
 ```
