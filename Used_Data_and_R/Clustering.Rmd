@@ -1,0 +1,157 @@
+---
+title: "Clustering"
+author: "Sar"
+date: "4/12/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# library statements 
+# read in data
+
+library(ISLR)
+library(dplyr)
+library(readr)
+library(broom)
+library(ggplot2)
+library(splines)
+library(tidymodels)
+library(gridExtra)
+library(maps)
+library(caret)
+tidymodels_prefer()
+
+COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
+
+Employment_State <- read.csv("Employment - State - Daily.csv", na.strings = ".")
+
+Mobility_State <- read.csv("Google Mobility - State - Daily.csv", na.strings = ".")
+  
+Spending_State <- read.csv("Affinity - State - Daily.csv", na.strings = ".")
+
+regions <- read.csv("regions.csv")
+fips <- state.fips
+```
+
+
+```{r}
+# data cleaning
+
+COVID_State$Date<-as.Date(with(COVID_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+Employment_State$Date<-as.Date(with(Employment_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+Mobility_State$Date<-as.Date(with(Mobility_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+Spending_State$Date<-as.Date(with(Spending_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+full_data <- merge(merge(merge(COVID_State, Employment_State, by=c("Date","statefips")), Mobility_State, by=c("Date","statefips")), Spending_State, by=c("Date","statefips"))
+
+head(full_data)
+
+full_data1 <- full_data %>%
+  select(-year.x, -month.x, -day.x, - year.y, -month.y, -day.y, -year.x )
+
+regions <- regions%>%
+  inner_join(fips, by=c("State.Code"="abb"))
+
+#created dataset with the fips code
+full_cut <- full_data1 %>%
+  filter(Date > "2020-04-13")%>%
+  select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed)%>%
+  left_join(regions, by=c("statefips"="fips"))
+
+full_cut <- full_cut %>%
+  select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed,State.Code, Region, Division)
+
+
+```
+
+
+```{r}
+full_cut <- full_cut[,-1]
+full_cut <- full_cut %>% na.omit() #there are 6 missing values in two variables
+full_cut <- full_cut %>%
+  mutate(Region = factor(Region)) %>% #make sure outcome is factor
+  mutate(across(where(is.character), as.factor))
+```
+
+
+### Hierarchical Clustering
+
+```{r}
+set.seed(253)
+full_cut <- full_cut %>%
+    slice_sample(n = 50)
+
+# Select the variables to be used in clustering
+full_cut_sub <- full_cut %>%
+    select(gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed)
+
+# Summary statistics for the variables
+summary(full_cut_sub)
+
+# Compute a distance matrix on the scaled data
+dist_mat_scaled <- dist(scale(full_cut_sub))
+
+# The (scaled) distance matrix is the input to hclust()
+# The method argument indicates the linkage type
+hc_complete <- hclust(dist_mat_scaled, method = "complete")
+hc_single <- hclust(dist_mat_scaled, method = "single")
+hc_average <- hclust(dist_mat_scaled, method = "average")
+hc_centroid <- hclust(dist_mat_scaled, method = "centroid")
+
+# Plot dendrograms
+plot(hc_complete)
+plot(hc_single)
+plot(hc_average)
+plot(hc_centroid)
+
+#plot with labels
+plot(hc_complete, labels = full_cut$Region)
+
+#scatterplot with colors
+full_cut <- full_cut %>%
+    mutate(
+        hclust_height3 = factor(cutree(hc_complete, h = 3)), # Cut at height (h) 3
+        hclust_num6 = factor(cutree(hc_complete, k = 6)) # Cut into 6 clusters (k)
+    )
+
+
+ggplot(full_cut, aes(x=gps_away_from_home, y=case_rate, color=hclust_height3))+
+    geom_point()+
+    theme_bw()
+
+```
+
+### K-Means Clustering
+
+
+```{r}
+# Look at summary statistics of the 3 variables
+full_cut_cut <- full_cut %>%
+  select(gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices,spend_hcs, emp_incbelowmed)
+summary(full_cut_cut)
+
+# Perform clustering: should you use scale()?
+set.seed(253)
+kclust_k3_3vars <- kmeans(scale(full_cut_cut), centers = 3)
+
+full_cut_sub2 <- full_cut %>%
+    mutate(kclust_3_3vars = factor(kclust_k3_3vars$cluster))
+
+#can type out more variables if you want to see
+full_cut_sub2 %>%
+    group_by(kclust_3_3vars) %>%
+    summarize(across(c(gps_away_from_home, case_rate, spend_remoteservices,spend_hcs, emp_incbelowmed), mean))
+```
+```{r}
+#vizualizing two random variables
+ggplot(full_cut_sub2, aes(y=gps_away_from_home, x=case_rate, color=kclust_3_3vars, shape=Region)) +
+    geom_point()
+```
