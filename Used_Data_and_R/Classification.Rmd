@@ -267,53 +267,136 @@ region_rf_wf %>% #based on permutation
   fit(data = full_cut) %>% extract_fit_engine() %>% vip()
 ```
 
-### Hierarchical Clustering
+### Logistic Regression
+
+To build logistic regression models in `tidymodels`, first load the package and set the seed for the random number generator to ensure reproducible results:
 
 ```{r}
-set.seed(253)
-full_cut <- full_cut %>%
-    slice_sample(n = 50)
+library(dplyr)
+library(ggplot2)
+library(tidymodels)
+library(probably) #install.packages('probably')
+tidymodels_prefer()
 
-# Select the variables to be used in clustering
-full_cut_sub <- full_cut %>%
-    select(gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed)
-
-# Summary statistics for the variables
-summary(full_cut_sub)
-
-# Compute a distance matrix on the scaled data
-dist_mat_scaled <- dist(scale(full_cut_sub))
-
-# The (scaled) distance matrix is the input to hclust()
-# The method argument indicates the linkage type
-hc_complete <- hclust(dist_mat_scaled, method = "complete")
-hc_single <- hclust(dist_mat_scaled, method = "single")
-hc_average <- hclust(dist_mat_scaled, method = "average")
-hc_centroid <- hclust(dist_mat_scaled, method = "centroid")
-
-# Plot dendrograms
-plot(hc_complete)
-plot(hc_single)
-plot(hc_average)
-plot(hc_centroid)
-
-#plot with labels
-plot(hc_complete, labels = full_cut$Region)
-
-#scatterplot with colors
-full_cut <- full_cut %>%
-    mutate(
-        hclust_height3 = factor(cutree(hc_complete, h = 3)), # Cut at height (h) 3
-        hclust_num6 = factor(cutree(hc_complete, k = 6)) # Cut into 6 clusters (k)
-    )
-
-
-ggplot(full_cut, aes(x=gps_away_from_home, y=case_rate, color=hclust_height3))+
-    geom_point()+
-    theme_bw()
-
+set.seed(___) # Pick your favorite number to fill in the parentheses
 ```
 
+Then adapt the following code to fit a logistic regression model:
+
+```{r}
+# Make sure you set reference level (the outcome you are NOT interested in)
+data <- data %>%
+  mutate(outcome = relevel(outcome, ref='failure')) #set reference level
+
+data_cv10 <- vfold_cv(data, v = 10)
+
+# Logistic Regression Model Spec
+logistic_spec <- logistic_reg() %>%
+    set_engine('glm') %>%
+    set_mode('classification')
+
+# Recipe
+logistic_rec <- recipe(outcome ~ ., data = data) %>%
+    step_normalize(all_numeric_predictors()) %>% 
+    step_dummy(all_nominal_predictors())
+
+# Workflow (Recipe + Model)
+log_wf <- workflow() %>% 
+    add_recipe(logistic_rec) %>%
+    add_model(logistic_spec) 
+
+# Fit Model to Training Data
+log_fit <- fit(log_wf, data = data)
+```
+
+<br>
+
+**Examining the logistic model**
+
+```{r}
+# Print out Coefficients
+log_fit %>% tidy()
+
+# Get Exponentiated coefficients + CI
+log_fit %>% tidy() %>%
+  mutate(OR.conf.low = exp(estimate - 1.96*std.error), OR.conf.high = exp(estimate + 1.96*std.error)) %>% # do this first
+  mutate(OR = exp(estimate))
+```
+
+**Making predictions from the logistic model**
+
+```{r}
+# Make soft (probability) predictions
+predict(log_fit, new_data = ___, type = "prob")
+
+# Make hard (class) predictions (using a default 0.5 probability threshold)
+predict(log_fit, new_data = ___, type = "class")
+```
+
+**Evaluating the logistic model on training data**
+
+```{r}
+# Soft predictions
+logistic_output <-  data %>%
+  bind_cols(predict(log_fit, new_data = data, type = 'prob')) 
+
+# Hard predictions (you pick threshold)
+logistic_output <- logistic_output %>%
+  mutate(.pred_class = make_two_class_pred(.pred_REFLEVEL, levels(outcome), threshold = .8)) #Try changing threshold (.5, 0, 1, .2, .8)
+
+# Visualize Soft Predictions
+logistic_output %>%
+  ggplot(aes(x = outcome, y = .pred_OUTCOME)) +
+  geom_boxplot() + 
+  geom_hline(yintercept = 0.5, color='red') +  # try changing threshold
+  labs(y = 'Predicted Probability of Outcome', x = 'Observed Outcome') +
+  theme_classic()
+```
+
+**Calculate evaluation metrics of the logistic model on training data**
+
+```{r}
+# Confusion Matrix
+logistic_output %>%
+  conf_mat(truth = outcome, estimate = .pred_class)
+
+log_metrics <- metric_set(sens, yardstick::spec, accuracy) # these metrics are based on hard predictions
+
+#sens: sensitivity = chance of correctly predicting second level, given second level (Yes)
+#spec: specificity = chance of correctly predicting first level, given first level (No)
+#accuracy: accuracy = chance of correctly predicting outcome
+
+logistic_output %>% 
+  log_metrics(estimate = .pred_class, truth = outcome, event_level = "second") # set second level of outcome as "success"
+```
+
+**ROC Curve: evaluating logistic model using soft predictions**
+
+For each threshold level, you can calculate sensitivity and specificity. An ROC (receiver operating characteristics) curve plots (1-specificity) on the x axis against the sensitivity. Ideally, we want sensitivity = 1 (no errors for one outcome group) and (1-specificity) = 0 (no errors for the other outcome group). This would visually look like a vertical line at x=0 and horizontal line at y = 1 (a "sharp corner"). The better model will be as close to this shape as possible.
+
+The y=x line is there and would be equivalent to guessing. A poor model will be close to this line.
+
+Typically the ROC curve shape is somewhere between a "sharp corner" and the diagonal y=x line. For different thresholds, as sensitivity increases, the specificity decreases or (1-specificity increases). 
+
+```{r}
+logistic_roc <- logistic_output %>% 
+    roc_curve(outcome, .pred_OUTCOME, event_level = "second") # set second level of outcome as "success"
+
+autoplot(logistic_roc) + theme_classic()
+```
+
+**Calculate evaluation metrics of the logistic model using CV**
+
+```{r}
+# CV Fit Model
+log_cv_fit <- fit_resamples(
+    log_wf, 
+    resamples = data_cv10,
+    metrics = metric_set(sens, yardstick::spec, accuracy, roc_auc),
+    control = control_resamples(save_pred = TRUE, event_level = 'second'))  # you need predictions for ROC calculations
+
+collect_metrics(log_cv_fit) #default threshold is 0.5
+```
 
 
 
