@@ -37,6 +37,8 @@ ggplot(wine_sub2, aes(y=Alcohol, x=Malic_Acid, color=kclust_3_3vars)) +
     geom_point()
 ```
 
+### Hierarchical Clustering
+
 ```{r}
 # Remove observations with missing data on key variables
 wine <- wine %>%
