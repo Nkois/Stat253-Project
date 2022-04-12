@@ -5,9 +5,39 @@ date: "4/12/2022"
 output: html_document
 ---
 ```{r}
-
+library(dplyr)
+library(ggplot2)
 library(readr)
 wine <- read_csv('wine.csv')
 
+```
+
+### K-Means Clustering
+
+```{r}
+
+# Run k-means for k = centers = 3
+set.seed(253)
+kclust_k3 <- kmeans(wine, centers = 3)
+
+# Display the cluter assignments
+kclust_k3$cluster
+
+# Add a variable (kclust_3) to the original dataset 
+# containing the cluster assignments
+wine <- wine %>%
+    mutate(kclust_3 = factor(kclust_k3$cluster))
+```
+
+```{r}
+# Look at summary statistics of the 3 variables
+summary(wine)
+
+# Perform clustering: should you use scale()?
+set.seed(253)
+kclust_k3_3vars <- kmeans(scale(wine), centers = 3)
+
+wine <- wine %>%
+    mutate(kclust_3_3vars = factor(kclust_k3_3vars$cluster))
 ```
 
