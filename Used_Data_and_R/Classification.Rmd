@@ -354,11 +354,11 @@ logistic_output <-  full_cut_sub3 %>%
 
 # Hard predictions (you pick threshold)
 logistic_output <- logistic_output %>%
-  mutate(.pred_class = make_two_class_pred(.pred_REFLEVEL, levels(isSouth), threshold = .8)) #Try changing threshold (.5, 0, 1, .2, .8)
+  mutate(.pred_class = make_two_class_pred(.pred_0, levels(isSouth), threshold = .5)) #Try changing threshold (.5, 0, 1, .2, .8)
 
 # Visualize Soft Predictions
 logistic_output %>%
-  ggplot(aes(x = isSouth, y = .pred_OUTCOME)) +
+  ggplot(aes(x = isSouth, y = .pred_1)) +
   geom_boxplot() + 
   geom_hline(yintercept = 0.5, color='red') +  # try changing threshold
   labs(y = 'Predicted Probability of Outcome', x = 'Observed Outcome') +
@@ -370,7 +370,7 @@ logistic_output %>%
 ```{r}
 # Confusion Matrix
 logistic_output %>%
-  conf_mat(truth = outcome, estimate = .pred_class)
+  conf_mat(truth = isSouth, estimate = .pred_class)
 
 log_metrics <- metric_set(sens, yardstick::spec, accuracy) # these metrics are based on hard predictions
 
@@ -379,7 +379,7 @@ log_metrics <- metric_set(sens, yardstick::spec, accuracy) # these metrics are b
 #accuracy: accuracy = chance of correctly predicting outcome
 
 logistic_output %>% 
-  log_metrics(estimate = .pred_class, truth = outcome, event_level = "second") # set second level of outcome as "success"
+  log_metrics(estimate = .pred_class, truth = isSouth, event_level = "second") # set second level of outcome as "success"
 ```
 
 **ROC Curve: evaluating logistic model using soft predictions**
@@ -392,7 +392,7 @@ Typically the ROC curve shape is somewhere between a "sharp corner" and the diag
 
 ```{r}
 logistic_roc <- logistic_output %>% 
-    roc_curve(outcome, .pred_OUTCOME, event_level = "second") # set second level of outcome as "success"
+    roc_curve(isSouth, .pred_1, event_level = "second") # set second level of outcome as "success"
 
 autoplot(logistic_roc) + theme_classic()
 ```
