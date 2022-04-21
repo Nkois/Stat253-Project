@@ -298,7 +298,8 @@ full_cut2 <- full_cut%>%
 
 
 # Creating a Dummy Variable that is yes for each day in a state where both nonessential buisness closer and stay at home orders were in place..
-full_cut2 <- mutate(full_cut2, day_with_allCloser = if_else(Date >= date_restrictions_start & Date <= date_restrictions_end, 1, 0))
+full_cut2 <- mutate(full_cut2, day_with_allCloser = if_else(Date >= date_restrictions_start & Date <= date_restrictions_end, 1, 0))%>%
+  filter(Date <= as.Date("2020-06-09","%Y-%m-%d"))
 ```
 
 
