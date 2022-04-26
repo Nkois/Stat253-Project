@@ -375,6 +375,17 @@ coefs_lambdas %>%
 #CHOOSING PREDICTORS
 final_fit %>% tidy() %>% filter(estimate != 0)
 
+mnFullMod_cv_dumy2 <- fit_resamples(final_fit),
+  resamples = folded_mn,
+  control = control_resamples(save_pred = TRUE,
+  metrics = metric_set(rmse, rsq, mae))
+
+mnFullMod_cv_dumy <- fit_resamples(mn_model_dumy_wf,
+  resamples = folded_mn,
+  control = control_resamples(save_pred = TRUE),
+  metrics = metric_set(rmse, rsq, mae))
+
+mnFullMod_cv_dumy2 %>% collect_metrics(summarize=TRUE)
 ```
 
 The predictor with the highest estimate (seen both in our tidy output and in the coefficient path visualization) is emp_incq3, which is the employment level for workers in the third quartile of the income distribution. However, this is part of a categorical variable, so we will consider employment level as the most important predictor. This makes contextual sense, as employment levels greatly influence how much time outside the house an individual can have. We arrived at the same outcome in LASSO as we did in OLS.

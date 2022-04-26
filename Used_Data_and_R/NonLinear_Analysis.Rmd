@@ -2,7 +2,9 @@
 title: "GAMs and NonLinearity"
 author: "North Carpenter"
 date: "3/8/2022"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r libaries_and_data}

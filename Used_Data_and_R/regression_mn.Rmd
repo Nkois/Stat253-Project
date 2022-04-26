@@ -255,6 +255,15 @@ final_fit <- fit(final_wf, data = minnesota)
 
 tidy(final_fit)
 
+
+#CV is to see how well the model is doing
+mnFullModLASSO_cv <- fit_resamples(final_wf,
+  resamples = folded_mn,
+  control = control_resamples(save_pred = TRUE),
+  metrics = metric_set(rmse, rsq, mae))
+
+mnFullModLASSO_cv %>% collect_metrics(summarize=TRUE)
+
 ```
 
 Here we can see that the Penalty for the lasso model has very little effect on the RMSE until it gets quite high. This is probably because some predictors are quickly eliminated and the more important ones are not removed until much later.
