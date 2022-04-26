@@ -86,11 +86,11 @@ full_cut <- full_cut %>%
 
 ```{r}
 set.seed(253)
-full_cut <- full_cut %>%
+full_cut_slice <- full_cut %>%
     slice_sample(n = 50)
 
 # Select the variables to be used in clustering
-full_cut_sub <- full_cut %>%
+full_cut_sub <- full_cut_slice %>%
     select(gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed)
 
 # Summary statistics for the variables
@@ -113,19 +113,20 @@ plot(hc_average)
 plot(hc_centroid)
 
 #plot with labels
-plot(hc_complete, labels = full_cut$Region)
+plot(hc_complete, labels = full_cut_slice$Region)
 
 #scatterplot with colors
-full_cut <- full_cut %>%
+full_cut_slice <- full_cut_slice %>%
     mutate(
-        hclust_height3 = factor(cutree(hc_complete, h = 3)), # Cut at height (h) 3
+        hclust_height3 = factor(cutree(hc_complete, h = 5)), # Cut at height (h) 5
         hclust_num6 = factor(cutree(hc_complete, k = 6)) # Cut into 6 clusters (k)
     )
 
 
-ggplot(full_cut, aes(x=gps_away_from_home, y=case_rate, color=hclust_height3))+
+ggplot(full_cut_slice, aes(y=gps_away_from_home, x=case_rate, color=hclust_height3, shape=Region))+
     geom_point()+
-    theme_bw()
+    theme_bw()+
+  labs(x="COVID Case Rate", y="Time Spent Outside The Home", color="Cluster Number")
 
 ```
 
@@ -140,7 +141,7 @@ summary(full_cut_cut)
 
 # Perform clustering: should you use scale()?
 set.seed(253)
-kclust_k3_3vars <- kmeans(scale(full_cut_cut), centers = 3)
+kclust_k3_3vars <- kmeans(scale(full_cut_cut), centers = 4)
 
 full_cut_sub2 <- full_cut %>%
     mutate(kclust_3_3vars = factor(kclust_k3_3vars$cluster))
@@ -153,5 +154,30 @@ full_cut_sub2 %>%
 ```{r}
 #vizualizing two random variables
 ggplot(full_cut_sub2, aes(y=gps_away_from_home, x=case_rate, color=kclust_3_3vars, shape=Region)) +
-    geom_point()
+    geom_point()+
+  labs(x="COVID Case Rate", y="Movement Outside The Home", color="Cluster Number")
 ```
+
+```{r}
+#choosing k-value
+# Data-specific function to cluster and calculate total within-cluster SS
+cluster_ss <- function(k){
+    # Perform clustering
+    kclust <- kmeans(scale(full_cut_cut), centers = k)
+
+    # Return the total within-cluster sum of squares
+    return(kclust$tot.withinss)
+}
+
+tibble(
+    k = 1:15,
+    tot_wc_ss = purrr::map_dbl(1:15, cluster_ss)
+) %>% 
+    ggplot(aes(x = k, y = tot_wc_ss)) +
+    geom_point() + 
+    labs(x = "Number of clusters",y = 'Total within-cluster sum of squares') + 
+    theme_classic()
+    
+```
+```
+
