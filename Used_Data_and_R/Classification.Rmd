@@ -59,12 +59,13 @@ full_data1 <- full_data %>%
 regions <- regions%>%
   inner_join(fips, by=c("State.Code"="abb"))
 
-#created dataset with the fips code
+# Created dataset with the fips code
 full_cut <- full_data1 %>%
   filter(Date > "2020-04-13")%>%
   select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed)%>%
   left_join(regions, by=c("statefips"="fips"))
 
+# Final Data Set
 full_cut <- full_cut %>%
   select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed,State.Code, Region, Division)
 
@@ -74,20 +75,18 @@ full_cut <- full_cut %>%
 
 
 ```{r}
-full_cut <- full_cut %>% na.omit() #there are 6 missing values in two variables
+# Splitting the Full cut so it has regions for CV
+full_cut <- full_cut %>% na.omit() 
 full_cut <- full_cut %>%
-  mutate(Region = factor(Region)) %>% #make sure outcome is factor
+  mutate(Region = factor(Region)) %>% 
   mutate(across(where(is.character), as.factor))
 ```
 
-
-##  Bagging
-
-### Model Specification
-
-Recipes first this time...
+## Bagging
 
 ```{r}
+# Re-sampleing
+
 spade_rec <- recipe(Region ~ ., data = full_cut) %>%
   step_rm(State.Code, Division, statefips)%>%
   step_nzv(all_predictors()) %>%
@@ -95,21 +94,18 @@ spade_rec <- recipe(Region ~ ., data = full_cut) %>%
   step_dummy(all_nominal_predictors()) 
 
 # Find out the Total Number of Predictors
-(spade_rec %>% prep(full_cut) %>% juice() %>% ncol()) - 1 #subtract 1 for outcome
+(spade_rec %>% prep(full_cut) %>% juice() %>% ncol()) - 1 
 ```
 
 ```{r}
 # Bagging Model Spec
 bag_spec <- rand_forest() %>%
   set_engine(engine = 'ranger') %>% 
-  set_args(mtry = 61, # Specify total number of predictors (use prep code above)
-           trees = 50, # Number of trees/bags (bootstrap aggregation)
-           min_n = 2,# Min observations to split (want small to create larger trees)
-           probability = FALSE) %>% # For now, we want hard predictions, not soft
-  set_mode('classification') # change this for regression tree
-
-bag_spec
-
+  set_args(mtry = 61, 
+           trees = 500,
+           min_n = 2,
+           probability = FALSE) %>%
+  set_mode('classification')
 
 region_bag_wf <- workflow() %>%
   add_model(bag_spec) %>%
@@ -126,7 +122,7 @@ set.seed(123) # Randomness in the bootstrap samples
 region_bag_fit <- region_bag_wf %>%
   fit(data = full_cut)
 
-region_bag_fit # check out OOB prediction error (accuracy = 1 - OOB prediction error)
+region_bag_fit
 ```
 
 
@@ -250,8 +246,6 @@ region_rf_OOB_output2 %>%
   roc_auc(Region, c(South, West, Midwest, Northeast), event_level = "second") #Area under Curve
 
 
-
-
 ```
 
 ### Variable Importance
@@ -267,6 +261,20 @@ region_rf_wf %>% #based on permutation
   fit(data = full_cut) %>% extract_fit_engine() %>% vip()
 ```
 
+```{r}
+region_rf_OOB_output3 %>%
+  conf_mat(truth = c(South, West, Midwest, Northeast), estimate = .pred_class)
+
+log_metrics <- metric_set(sens, yardstick::spec, accuracy) # these metrics are based on hard predictions
+
+#sens: sensitivity = chance of correctly predicting second level, given second level (Yes)
+#spec: specificity = chance of correctly predicting first level, given first level (No)
+#accuracy: accuracy = chance of correctly predicting outcome
+
+region_rf_OOB_output3 %>% 
+  log_metrics(estimate = .pred_class, truth = c(South, West, Midwest, Northeast), event_level = "second")
+```
+
 ### Logistic Regression
 
 To build logistic regression models in `tidymodels`, first load the package and set the seed for the random number generator to ensure reproducible results:
@@ -275,15 +283,16 @@ To build logistic regression models in `tidymodels`, first load the package and 
 library(dplyr)
 library(ggplot2)
 library(tidymodels)
-library(probably) #install.packages('probably')
+library(probably) 
 tidymodels_prefer()
 
 policy <- read.csv("policy.csv", na.strings = "")
 
-set.seed(253) # Pick your favorite number to fill in the parentheses
+set.seed(253)
 ```
 
 ```{r}
+# Data Cleaning
 policy$date_restrictions_start<-as.Date(policy$date_restrictions_start,"%Y-%m-%d")
 policy$date_restrictions_end<-as.Date(policy$date_restrictions_end,"%Y-%m-%d")
 
@@ -303,12 +312,8 @@ full_cut2 <- mutate(full_cut2, day_with_allCloser = if_else(Date >= date_restric
 ```
 
 
-Then adapt the following code to fit a logistic regression model:
-
 ```{r}
-# Make sure you set reference level (the outcome you are NOT interested in)
-#full_cut <- full_cut %>%
- # mutate(isSouth = relevel(0, ref='failure')) #set reference level
+# Log Model and data Cutting
 
 full_cut2$isSouth <- as.factor(full_cut2$isSouth)
 full_cut2$day_with_allCloser <- as.factor(full_cut2$day_with_allCloser)
@@ -326,10 +331,8 @@ logistic_spec <- logistic_reg() %>%
 # Recipe
 logistic_rec <- recipe(day_with_allCloser ~ ., data = full_cut_sub3) %>%
     step_normalize(all_numeric_predictors()) %>% 
-    step_dummy(all_nominal_predictors())#%>%
-  #step_rm(isSouth)
+    step_dummy(all_nominal_predictors())
 
-# Workflow (Recipe + Model)
 log_wf <- workflow() %>% 
     add_recipe(logistic_rec) %>%
     add_model(logistic_spec) 
@@ -371,13 +374,13 @@ logistic_output <-  full_cut_sub3 %>%
 
 # Hard predictions (you pick threshold)
 logistic_output <- logistic_output %>%
-  mutate(.pred_class = make_two_class_pred(.pred_0, levels(day_with_allCloser), threshold = .6)) #Try changing threshold (.5, 0, 1, .2, .8)
+  mutate(.pred_class = make_two_class_pred(.pred_0, levels(day_with_allCloser), threshold = .6))
 
 # Visualize Soft Predictions
 logistic_output %>%
   ggplot(aes(x = day_with_allCloser, y = .pred_1)) +
   geom_boxplot() + 
-  geom_hline(yintercept = 0.6, color='red') +  # try changing threshold
+  geom_hline(yintercept = 0.6, color='red') + 
   labs(y = 'Predicted Probability of Outcome', x = 'Observed Outcome') +
   theme_classic()
 ```
@@ -399,17 +402,11 @@ logistic_output %>%
   log_metrics(estimate = .pred_class, truth = day_with_allCloser, event_level = "second") # set second level of outcome as "success"
 ```
 
-**ROC Curve: evaluating logistic model using soft predictions**
-
-For each threshold level, you can calculate sensitivity and specificity. An ROC (receiver operating characteristics) curve plots (1-specificity) on the x axis against the sensitivity. Ideally, we want sensitivity = 1 (no errors for one outcome group) and (1-specificity) = 0 (no errors for the other outcome group). This would visually look like a vertical line at x=0 and horizontal line at y = 1 (a "sharp corner"). The better model will be as close to this shape as possible.
-
-The y=x line is there and would be equivalent to guessing. A poor model will be close to this line.
-
-Typically the ROC curve shape is somewhere between a "sharp corner" and the diagonal y=x line. For different thresholds, as sensitivity increases, the specificity decreases or (1-specificity increases). 
+## ROC Curve: evaluating logistic model using soft predictions
 
 ```{r}
 logistic_roc <- logistic_output %>% 
-    roc_curve(day_with_allCloser, .pred_1, event_level = "second") # set second level of outcome as "success"
+    roc_curve(day_with_allCloser, .pred_1, event_level = "second")
 
 autoplot(logistic_roc) + theme_classic()
 ```
@@ -422,7 +419,7 @@ log_cv_fit <- fit_resamples(
     log_wf, 
     resamples = data_cv10,
     metrics = metric_set(sens, yardstick::spec, accuracy, roc_auc),
-    control = control_resamples(save_pred = TRUE, event_level = 'second'))  # you need predictions for ROC calculations
+    control = control_resamples(save_pred = TRUE, event_level = 'second'))
 
 collect_metrics(log_cv_fit) #default threshold is 0.5
 ```
