@@ -103,7 +103,7 @@ bag_spec <- rand_forest() %>%
   set_engine(engine = 'ranger') %>% 
   set_args(mtry = 61, 
            trees = 500,
-           min_n = 2,
+           min_n = 20,
            probability = FALSE) %>%
   set_mode('classification')
 
@@ -176,7 +176,7 @@ rf_spec <- rand_forest() %>%
   set_engine(engine = 'ranger') %>% 
   set_args(mtry = NULL, # size of random subset of variables; default is floor(sqrt(ncol(x)))
            trees = 500, # Number of bags
-           min_n = 2,
+           min_n = 20,
            probability = FALSE, # want hard predictions first
            importance = 'impurity') %>% 
   set_mode('classification') # change this for regression tree
@@ -262,17 +262,17 @@ region_rf_wf %>% #based on permutation
 ```
 
 ```{r}
-region_rf_OOB_output3 %>%
-  conf_mat(truth = c(South, West, Midwest, Northeast), estimate = .pred_class)
+# region_rf_OOB_output3 %>%
+  # conf_mat(truth = c(South, West, Midwest, Northeast), estimate = .pred_class)
 
-log_metrics <- metric_set(sens, yardstick::spec, accuracy) # these metrics are based on hard predictions
+# log_metrics <- metric_set(sens, yardstick::spec, accuracy) # these metrics are based on hard predictions
 
 #sens: sensitivity = chance of correctly predicting second level, given second level (Yes)
 #spec: specificity = chance of correctly predicting first level, given first level (No)
 #accuracy: accuracy = chance of correctly predicting outcome
 
-region_rf_OOB_output3 %>% 
-  log_metrics(estimate = .pred_class, truth = c(South, West, Midwest, Northeast), event_level = "second")
+# region_rf_OOB_output3 %>% 
+#   log_metrics(estimate = .pred_class, truth = c(South, West, Midwest, Northeast), event_level = "second")
 ```
 
 ### Logistic Regression
