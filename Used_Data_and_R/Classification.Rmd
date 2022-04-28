@@ -207,11 +207,23 @@ region_rf_fit # check out OOB prediction error (accuracy = 1 - OOB prediction er
 To  calculate OOB metrics, we need to get the OOB predictions from the fit model.
 
 ```{r}
-region_rf_OOB_output <- tibble(
-  .pred_class = region_rf_fit %>% extract_fit_engine() %>% pluck('predictions'),
-  Region = full_cut %>% pull(Region))
+#region_rf_OOB_output <- tibble(
+#  .pred_class = region_rf_fit %>% extract_fit_engine() %>% pluck('predictions'),
+#  Region = full_cut %>% pull(Region))
 
-bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
+#bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
+
+
+region_rf_OOB_output <- function(fit_model, model_label, truth){
+    tibble(
+          .pred_class = region_rf_fit %>% extract_fit_engine() %>% pluck('predictions'), #OOB predictions
+          Region = truth,
+          label = model_label
+      )
+}
+
+#check out the function output
+region_rf_OOB_output(region_rf_fit2,NULL, full_cut %>% pull(Region))
 
 
 ```
@@ -262,8 +274,11 @@ region_rf_wf %>% #based on permutation
 ```
 
 ```{r}
-# region_rf_OOB_output3 %>%
-  # conf_mat(truth = c(South, West, Midwest, Northeast), estimate = .pred_class)
+#rf_OOB_output(data_fit_mtry12,12, land %>% pull(class)) %>%
+#    conf_mat(truth = class, estimate= .pred_class)
+
+ region_rf_OOB_output(region_rf_fit2, NULL, full_cut %>% pull(Region)) %>%
+   conf_mat(truth = Region, estimate = .pred_class)
 
 # log_metrics <- metric_set(sens, yardstick::spec, accuracy) # these metrics are based on hard predictions
 
