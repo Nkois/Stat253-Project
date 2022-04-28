@@ -369,15 +369,18 @@ coefs_lambdas %>%
   geom_vline(xintercept = best_se_penalty %>% pull(penalty), linetype = 'dashed') + 
   theme_classic() + 
   theme(legend.position = "bottom", legend.text=element_text(size=8))
+
+
+best_se_penalty
 ```
 
 ```{r}
 #CHOOSING PREDICTORS
 final_fit %>% tidy() %>% filter(estimate != 0)
 
-mnFullMod_cv_dumy2 <- fit_resamples(final_fit),
+mnFullMod_cv_dumy2 <- fit_resamples(final_fit,
   resamples = folded_mn,
-  control = control_resamples(save_pred = TRUE,
+  control = control_resamples(save_pred = TRUE),
   metrics = metric_set(rmse, rsq, mae))
 
 mnFullMod_cv_dumy <- fit_resamples(mn_model_dumy_wf,
