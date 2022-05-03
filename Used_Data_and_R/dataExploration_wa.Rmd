@@ -15,10 +15,11 @@ library(broom)
 library(ggplot2)
 library(splines)
 library(tidymodels)
+library("gridExtra")                        # Load gridExtra package
 tidymodels_prefer()
 ```
 
-```{r read_data}
+```{r load_data}
 COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
 
 Employment_State <- read.csv("Employment - State - Daily.csv", na.strings = ".")
@@ -29,9 +30,7 @@ Spending_State <- read.csv("Affinity - State - Daily.csv", na.strings = ".")
 ```
 
 
-```{r}
-# data cleaning
-
+```{r data_cleaning}
 COVID_State$Date<-as.Date(with(COVID_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
 
 Employment_State$Date<-as.Date(with(Employment_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
@@ -51,19 +50,11 @@ full_data1 <- full_data %>%
 washington <- full_data1 %>%
   filter(statefips==53)
   
-```
-
-```{r}
 washington_cut <- washington %>%
   filter(Date > "2020-04-13")
 ```
 
-```{r}
-#Grid Extra package
-library("gridExtra")                        # Load gridExtra package
-```
-
-```{r}
+```{r nonemployment_date_visualizations}
 #Visualizing non-employment variables by date
 gps <-ggplot(washington, aes(y = gps_away_from_home, x = Date)) +
     geom_point() +
@@ -99,7 +90,7 @@ grid.arrange(gps, vaccine, case, hosp, remote, ncol=2)
 ```
 
 
-```{r}
+```{r employment_date_visualizations}
 #Visualizing employment variables by date
 emp1 <- ggplot(washington, aes(y = emp_incq1, x = Date)) +
     geom_point() +
@@ -132,9 +123,8 @@ emp4 <-ggplot(washington, aes(y = emp_incq4, x = Date)) +
 grid.arrange(emp1, emp2, emp3, emp4, ncol=2)
 ```
 
-```{r}
+```{r nonemployment_gps_visualizations}
 #Visualizing non-employment variables by gps_away_from_home (using washington_cut)
-
 vaccine_corr <-ggplot(washington_cut, aes(y = gps_away_from_home, x = fullvaccine_rate)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
@@ -164,7 +154,7 @@ hosp_corr
 grid.arrange(vaccine_corr, case_corr, hosp_corr, remote_corr, ncol=2)
 ```
 
-```{r}
+```{r employment_gps_visualizations}
 #Visualizing employment variables by gps_away_from_home (using washington_cut)
 emp1_corr <- ggplot(washington_cut, aes(y = gps_away_from_home, x = emp_incq1)) +
     geom_point() +
@@ -195,21 +185,20 @@ emp4_corr <-ggplot(washington_cut, aes(y = gps_away_from_home, x = emp_incq4)) +
     #+xlim(-0.45, 0.2)
 
 grid.arrange(emp1_corr, emp2_corr, emp3_corr, emp4_corr, ncol=2)
+
+#ggplot(wa_mod_output_lasso, aes(y = resid, x = Date)) +
+#    geom_point() +
+#    geom_smooth(color = "blue", se = FALSE) +
+#    geom_hline(yintercept = 0, color = "red") + 
+#    theme_classic()
+#
+#tmp <- wa_mod_output_lasso
+#tmp$resid
 ```
-
-ggplot(wa_mod_output_lasso, aes(y = resid, x = Date)) +
-    geom_point() +
-    geom_smooth(color = "blue", se = FALSE) +
-    geom_hline(yintercept = 0, color = "red") + 
-    theme_classic()
-
-tmp <- wa_mod_output_lasso
-tmp$resid
-
 
 Here we can see the data combined. N/A slots represent cases were there was no value to enter or where data was missing.
 
-```{r}
+```{r ols_model}
 #OLS
 set.seed(123)
 
@@ -241,7 +230,7 @@ wa_mod <- wa_model_wf %>% fit(data=washington)
 
 ```
 
-```{r}
+```{r ols_output}
 wa_mod_output_OLS <- wa_mod %>%
   predict(new_data=washington) %>%
   bind_cols(washington)%>%
@@ -298,7 +287,7 @@ ggplot(wa_mod_output_OLS, aes(y = resid, x = spend_remoteservices)) +
 
 Here we have the summery data for our basic best fit model. We can see that the standard error is about three hundredths of a percent; this is very low for predicting in a range of up to 10 % change but is more significant for most days when there is very little change in average movement.
 
-```{r}
+```{r lasso_model}
 #LASSO using washington_cut
 set.seed(123)
 
@@ -355,7 +344,7 @@ tidy(final_fit)
 Here we can see that the Penalty for the lasso model has very little effect on the RMSE until it gets quite high. This is probably because some predictors are quickly eliminated and the more important ones are not removed until much later.
 
 
-```{r}
+```{r residuals}
 #Residual Plots
 #OLS
 wa_mod_output <- wa_mod %>%
@@ -372,7 +361,7 @@ ggplot(wa_mod_output, aes(y = resid, x = .pred)) +
 
 Our model seems to be fairly randomly distributed around the middle line. There is, however, a concerning lack of predictions in the area above the 0 line around -0.09 and below the 0 line around -0.045.
 
-```{r}
+```{r lasso_output}
 #LASSO
 wa_mod_output_lasso <- final_fit %>%
   predict(new_data=washington) %>%
@@ -437,7 +426,7 @@ ggplot(wa_mod_output_lasso, aes(y = resid, x = spend_remoteservices)) +
 
 Overall our residuals are presenting some strange trends. Some of our predictions are taking weird paths into some kind of very negative ark. Many of our predictors have strong curves that look like some kind of spline. Since some of them are eliminated very quickly by our LASSO method I would not worry about several of these but emp_incq3 seems to have some strange patterns in it we should probably investigate.
 
-```{r}
+```{r best_penalty}
 best_penalty <- select_best(tune_res, metric = 'mae') # choose penalty value based on lowest cv mae
 best_penalty
 
@@ -445,9 +434,7 @@ best_se_penalty <- select_by_one_std_err(tune_res, metric = 'mae', desc(penalty)
 ```
 
 
-```{r}
-#COEFFICIENT PATHS 
-
+```{r coefficient_paths}
 glmnet_output <- final_fit %>% extract_fit_parsnip() %>% pluck('fit') # get the original glwaet output
 
 lambdas <- glwaet_output$lambda
@@ -471,17 +458,8 @@ coefs_lambdas %>%
   theme(legend.position = "bottom", legend.text=element_text(size=8))
 ```
 
-```{r}
-#CHOOSING PREDICTORS
+```{r choosing_predictors}
 final_fit %>% tidy() %>% filter(estimate != 0)
-
 ```
 
 The predictor with the highest estimate (seen both in our tidy output and in the coefficient path visualization) is emp_incq3, which is the employment level for workers in the third quartile of the income distribution. However, this is part of a categorical variable, so we will consider employment level as the most important predictor. This makes contextual sense, as employment levels greatly influence how much time outside the house an individual can have. We arrived at the same outcome in LASSO as we did in OLS.
-
-
-
-
-
-
-

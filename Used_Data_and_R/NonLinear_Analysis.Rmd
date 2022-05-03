@@ -18,7 +18,7 @@ library(tidymodels)
 tidymodels_prefer()
 ```
 
-```{r read_data}
+```{r load_data}
 COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
 
 Employment_State <- read.csv("Employment - State - Daily.csv", na.strings = ".")
@@ -27,7 +27,6 @@ Mobility_State <- read.csv("Google Mobility - State - Daily.csv", na.strings = "
   
 Spending_State <- read.csv("Affinity - State - Daily.csv", na.strings = ".")
 ```
-
 
 ```{r data_cleaning}
 COVID_State$Date<-as.Date(with(COVID_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
@@ -56,7 +55,7 @@ minnesota_cut <- minnesota %>%
   filter(Date > "2020-04-13")
 ```
 
-```{r creating_model}
+```{r gam_model}
 set.seed(123)
 
 # Don't necessarily need to use gam_spec, can use lm_spec instead

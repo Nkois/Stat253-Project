@@ -26,7 +26,7 @@ library(caret)
 tidymodels_prefer()
 ```
 
-```{r read_data}
+```{r load_data}
 COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
 
 Employment_State <- read.csv("Employment - State - Daily.csv", na.strings = ".")
@@ -40,9 +40,7 @@ fips <- state.fips
 ```
 
 
-```{r}
-# data cleaning
-
+```{r data_cleaning}
 COVID_State$Date<-as.Date(with(COVID_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
 
 Employment_State$Date<-as.Date(with(Employment_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
@@ -70,11 +68,6 @@ full_cut <- full_data1 %>%
 full_cut <- full_cut %>%
   select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed,State.Code, Region, Division)
 
-
-```
-
-
-```{r}
 full_cut <- full_cut[,-1]
 full_cut <- full_cut %>% na.omit() #there are 6 missing values in two variables
 full_cut <- full_cut %>%
@@ -85,7 +78,7 @@ full_cut <- full_cut %>%
 
 ### Hierarchical Clustering
 
-```{r}
+```{r hierarchical_clustering}
 set.seed(253)
 full_cut <- full_cut %>%
     slice_sample(n = 50)
@@ -128,13 +121,12 @@ full_cut <- full_cut %>%
 ggplot(full_cut, aes(x=gps_away_from_home, y=case_rate, color=hclust_height3))+
     geom_point()+
     theme_bw()
-
 ```
+
 
 ### K-Means Clustering
 
-
-```{r}
+```{r kmeans_clustering}
 # Look at summary statistics of the 3 variables
 full_cut_cut <- full_cut %>%
   select(gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices,spend_hcs, emp_incbelowmed)
@@ -152,12 +144,14 @@ full_cut_sub2 %>%
     group_by(kclust_3_3vars) %>%
     summarize(across(c(gps_away_from_home, case_rate, spend_remoteservices,spend_hcs, emp_incbelowmed), mean))
 ```
-```{r}
+
+```{r variable_visualization}
 #vizualizing two random variables
 ggplot(full_cut_sub2, aes(y=gps_away_from_home, x=case_rate, color=kclust_3_3vars, shape=Region)) +
     geom_point()
 ```
-```{r}
+
+```{r confusion_matrix}
 #confusion matrix table
 calculate_mode <- function(x) {
   uniqx <- unique(na.omit(x))
@@ -172,19 +166,19 @@ confMatrix_k
 
 confMatrix_k[confMatrix_k$Region=="West", "cluster"] <- 2
 
-
 #full_cut_sub2 <- full_cut_sub2 %>%
 #  mutate(regionNum = as.numeric(case_when(Region=="Midwest"~3, #Region=="Northeast"~4,Region=="South"~1,Region=="West"~2)))
 
 full_cut_sub2 <- full_cut_sub2 %>%
   mutate(Pred.Region = as.factor(case_when(kclust_3_3vars==3~"Midwest", kclust_3_3vars==4~"Northeast",kclust_3_3vars==1~"South",kclust_3_3vars==2~"West")))
 
-
 print(confMatrix_k)
 
 full_cut_sub2 %>%
   conf_mat(truth = Region, estimate = Pred.Region)
+```
 
+```{r metric_estimates}
 log_metrics <- metric_set(sens, yardstick::spec, accuracy)
 
 full_cut_sub2 %>% 
@@ -194,4 +188,3 @@ rand_index <- adj.rand.index(full_cut_sub2$Region, full_cut_sub2$Pred.Region)
 
 #Accuracy is 34%, this is kind of awful lol.
 ```
-
