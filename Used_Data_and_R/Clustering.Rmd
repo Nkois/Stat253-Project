@@ -114,11 +114,12 @@ plot(hc_centroid)
 
 #plot with labels
 plot(hc_complete, labels = full_cut$Region)
+#complete linkage gives tighter, denser clusters because it is easier to split on the 4 clusters that I wanted. I also hoped the clusters would be clearly defined into 4 regions.
 
 #scatterplot with colors
 full_cut <- full_cut %>%
     mutate(
-        hclust_height3 = factor(cutree(hc_complete, h = 3)), # Cut at height (h) 3
+        hclust_height3 = factor(cutree(hc_complete, h = 5)), # Cut at height (h) 3
         hclust_num6 = factor(cutree(hc_complete, k = 4)) # Cut into 4 clusters (k)
     )
 
@@ -166,8 +167,10 @@ confMatrix_k <- full_cut_sub2 %>%
   select(Region, kclust_3_3vars)%>%
   group_by(Region)%>%
   summarise(cluster=as.numeric(calculate_mode(kclust_3_3vars)))
+confMatrix_k
 
 confMatrix_k[confMatrix_k$Region=="West", "cluster"] <- 2
+
 
 #full_cut_sub2 <- full_cut_sub2 %>%
 #  mutate(regionNum = as.numeric(case_when(Region=="Midwest"~3, #Region=="Northeast"~4,Region=="South"~1,Region=="West"~2)))
@@ -175,15 +178,18 @@ confMatrix_k[confMatrix_k$Region=="West", "cluster"] <- 2
 full_cut_sub2 <- full_cut_sub2 %>%
   mutate(Pred.Region = as.factor(case_when(kclust_3_3vars==3~"Midwest", kclust_3_3vars==4~"Northeast",kclust_3_3vars==1~"South",kclust_3_3vars==2~"West")))
 
+
 print(confMatrix_k)
 
 full_cut_sub2 %>%
   conf_mat(truth = Region, estimate = Pred.Region)
 
-log_metrics <- metric_set(sens, yardstick::spec, accuracy) # these metrics are based on hard predictions
+log_metrics <- metric_set(sens, yardstick::spec, accuracy)
 
 full_cut_sub2 %>% 
   log_metrics(estimate = Pred.Region, truth = Region)
+
+rand_index <- adj.rand.index(full_cut_sub2$Region, full_cut_sub2$Pred.Region)
 
 #Accuracy is 34%, this is kind of awful lol.
 ```
