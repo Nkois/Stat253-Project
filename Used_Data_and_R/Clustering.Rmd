@@ -119,7 +119,7 @@ plot(hc_complete, labels = full_cut$Region)
 full_cut <- full_cut %>%
     mutate(
         hclust_height3 = factor(cutree(hc_complete, h = 3)), # Cut at height (h) 3
-        hclust_num6 = factor(cutree(hc_complete, k = 6)) # Cut into 6 clusters (k)
+        hclust_num6 = factor(cutree(hc_complete, k = 4)) # Cut into 4 clusters (k)
     )
 
 
@@ -140,7 +140,7 @@ summary(full_cut_cut)
 
 # Perform clustering: should you use scale()?
 set.seed(253)
-kclust_k3_3vars <- kmeans(scale(full_cut_cut), centers = 3)
+kclust_k3_3vars <- kmeans(scale(full_cut_cut), centers = 4)
 
 full_cut_sub2 <- full_cut %>%
     mutate(kclust_3_3vars = factor(kclust_k3_3vars$cluster))
@@ -155,3 +155,36 @@ full_cut_sub2 %>%
 ggplot(full_cut_sub2, aes(y=gps_away_from_home, x=case_rate, color=kclust_3_3vars, shape=Region)) +
     geom_point()
 ```
+```{r}
+#confusion matrix table
+calculate_mode <- function(x) {
+  uniqx <- unique(na.omit(x))
+  uniqx[which.max(tabulate(match(x, uniqx)))]
+}
+
+confMatrix_k <- full_cut_sub2 %>%
+  select(Region, kclust_3_3vars)%>%
+  group_by(Region)%>%
+  summarise(cluster=as.numeric(calculate_mode(kclust_3_3vars)))
+
+confMatrix_k[confMatrix_k$Region=="West", "cluster"] <- 2
+
+#full_cut_sub2 <- full_cut_sub2 %>%
+#  mutate(regionNum = as.numeric(case_when(Region=="Midwest"~3, #Region=="Northeast"~4,Region=="South"~1,Region=="West"~2)))
+
+full_cut_sub2 <- full_cut_sub2 %>%
+  mutate(Pred.Region = as.factor(case_when(kclust_3_3vars==3~"Midwest", kclust_3_3vars==4~"Northeast",kclust_3_3vars==1~"South",kclust_3_3vars==2~"West")))
+
+print(confMatrix_k)
+
+full_cut_sub2 %>%
+  conf_mat(truth = Region, estimate = Pred.Region)
+
+log_metrics <- metric_set(sens, yardstick::spec, accuracy) # these metrics are based on hard predictions
+
+full_cut_sub2 %>% 
+  log_metrics(estimate = Pred.Region, truth = Region)
+
+#Accuracy is 34%, this is kind of awful lol.
+```
+
