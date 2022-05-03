@@ -22,7 +22,7 @@ library(tidymodels)
 library(gridExtra)
 library(maps)
 library(caret)
-library(vip) #install.packages('vip')
+library(vip)
 library(probably) 
 tidymodels_prefer()
 ```
@@ -70,30 +70,30 @@ full_cut <- full_cut %>%
   select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed,State.Code, Region, Division)
 
 # Splitting the Full cut so it has regions for CV
-full_cut <- full_cut %>% na.omit() 
-full_cut <- full_cut %>%
+random_forest_data <- full_cut %>% na.omit()
+random_forest_data <- random_forest_data %>%
   mutate(Region = factor(Region)) %>% 
   mutate(across(where(is.character), as.factor))
+random_forest_data <- random_forest_data %>% select(gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed, Region)
 ```
 
 ## Bagging
 ```{r creating_recipe}
 # Re-sampleing
-spade_rec <- recipe(Region ~ ., data = full_cut) %>%
-  step_rm(State.Code, Division, statefips)%>%
+spade_rec <- recipe(Region ~ ., data = random_forest_data) %>%
   step_nzv(all_predictors()) %>%
   step_novel(all_nominal_predictors()) %>%
   step_dummy(all_nominal_predictors()) 
 
 # Find out the Total Number of Predictors
-(spade_rec %>% prep(full_cut) %>% juice() %>% ncol()) - 1 
+(spade_rec %>% prep(random_forest_data) %>% juice() %>% ncol()) - 1 
 ```
 
 ```{r creating_workflow}
 # Bagging Model Spec
 bag_spec <- rand_forest() %>%
   set_engine(engine = 'ranger') %>% 
-  set_args(mtry = 61, 
+  set_args(mtry = 5, 
            trees = 500,
            min_n = 20,
            probability = FALSE) %>%
@@ -111,7 +111,7 @@ region_bag_wf <- workflow() %>%
 set.seed(123) # Randomness in the bootstrap samples
 
 region_bag_fit <- region_bag_wf %>%
-  fit(data = full_cut)
+  fit(data = random_forest_data)
 
 region_bag_fit
 ```
@@ -124,7 +124,7 @@ To  calculate OOB metrics, we need to get the OOB predictions from the fit model
 ```{r oob_metrics}
 region_bag_OOB_output <- tibble(
   .pred_class = region_bag_fit %>% extract_fit_engine() %>% pluck('predictions'),
-  Region = full_cut %>% pull(Region))
+  Region = random_forest_data %>% pull(Region))
 
 bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
 
@@ -139,7 +139,7 @@ set.seed(123) # to get the same bootstrap samples, use same seed
 
 region_bag_fit2 <- region_bag_wf %>%
   update_model(bag_spec %>% set_args(probability = TRUE)) %>% # Now, we want soft (probability) predictions
-  fit(data = full_cut)
+  fit(data = random_forest_data)
 
 region_bag_fit2
 ```
@@ -147,7 +147,7 @@ region_bag_fit2
 ```{r auc_of_roc}
 region_bag_OOB_output2 <- bind_cols(
   region_bag_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
-  full_cut %>% select(Region))
+  random_forest_data %>% select(Region))
 
 region_bag_OOB_output2 %>% 
   roc_curve(Region, c(South, West, Midwest, Northeast), event_level = "second") %>% autoplot()
@@ -185,7 +185,7 @@ region_rf_wf <- workflow() %>%
 ```{r fit_model}
 set.seed(123)
 region_rf_fit <- region_rf_wf %>%
-  fit(data = full_cut)
+  fit(data = random_forest_data)
 
 region_rf_fit # check out OOB prediction error (accuracy = 1 - OOB prediction error)
 ```
@@ -198,7 +198,7 @@ To  calculate OOB metrics, we need to get the OOB predictions from the fit model
 ```{r oob_metrics}
 #region_rf_OOB_output <- tibble(
 #  .pred_class = region_rf_fit %>% extract_fit_engine() %>% pluck('predictions'),
-#  Region = full_cut %>% pull(Region))
+#  Region = random_forest_data %>% pull(Region))
 
 #bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
 
@@ -212,7 +212,7 @@ region_rf_OOB_output <- function(fit_model, model_label, truth){
 }
 
 #check out the function output
-region_rf_OOB_output(region_rf_fit2,NULL, full_cut %>% pull(Region))
+region_rf_OOB_output(region_rf_fit2,NULL, random_forest_data %>% pull(Region))
 ```
 
 To estimate AUC of ROC curve using OOB predictions, we'll need to refit the model to get the predicted probabilities. 
@@ -221,7 +221,7 @@ To estimate AUC of ROC curve using OOB predictions, we'll need to refit the mode
 set.seed(123) #to get the same bootstrap samples, use same seed
 region_rf_fit2 <- region_rf_wf %>%
   update_model(rf_spec %>% set_args(probability = TRUE)) %>%
-  fit(data = full_cut)
+  fit(data = random_forest_data)
 
 region_rf_fit2
 ```
@@ -229,11 +229,11 @@ region_rf_fit2
 ```{r auc_roc}
 region_rf_OOB_output2 <- bind_cols(
   region_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
-  full_cut%>% select(Region))
+  random_forest_data%>% select(Region))
 
 region_rf_OOB_output3 <- bind_cols(
   .pred_class = region_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions'), 
-  Region = full_cut %>% pull(Region))
+  Region = random_forest_data %>% pull(Region))
 
 region_rf_OOB_output2 %>% 
   roc_curve(Region, c(South, West, Midwest, Northeast), event_level = "second") %>% autoplot()
@@ -249,14 +249,14 @@ region_rf_fit %>% extract_fit_engine() %>% vip() #based on impurity
 
 region_rf_wf %>% #based on permutation
   update_model(rf_spec %>% set_args(importance = "permutation")) %>%
-  fit(data = full_cut) %>% extract_fit_engine() %>% vip()
+  fit(data = random_forest_data) %>% extract_fit_engine() %>% vip()
 ```
 
 ```{r confusion_matrix}
 #rf_OOB_output(data_fit_mtry12,12, land %>% pull(class)) %>%
 #    conf_mat(truth = class, estimate= .pred_class)
 
- region_rf_OOB_output(region_rf_fit2, NULL, full_cut %>% pull(Region)) %>%
+ region_rf_OOB_output(region_rf_fit2, NULL, random_forest_data %>% pull(Region)) %>%
    conf_mat(truth = Region, estimate = .pred_class)
 
 # log_metrics <- metric_set(sens, yardstick::spec, accuracy) # these metrics are based on hard predictions
@@ -289,8 +289,6 @@ policy_cut <- policy %>%
 full_cut2 <- full_cut%>%
   mutate(isSouth = if_else(Region == "South", 1, 0))%>%
   inner_join(policy_cut, by=c("statefips"="statefips"))
-
-
 
 # Creating a Dummy Variable that is yes for each day in a state where both nonessential buisness closer and stay at home orders were in place..
 full_cut2 <- mutate(full_cut2, day_with_allCloser = if_else(Date >= date_restrictions_start & Date <= date_restrictions_end, 1, 0))%>%
