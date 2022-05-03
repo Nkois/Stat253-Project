@@ -7,10 +7,7 @@ output:
   html_document: default
 ---
 
-```{r libaries_and_data}
-# library statements 
-# read in data
-
+```{r libaries}
 library(ISLR)
 library(dplyr)
 library(readr)
@@ -19,7 +16,9 @@ library(ggplot2)
 library(splines)
 library(tidymodels)
 tidymodels_prefer()
+```
 
+```{r read_data}
 COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
 
 Employment_State <- read.csv("Employment - State - Daily.csv", na.strings = ".")

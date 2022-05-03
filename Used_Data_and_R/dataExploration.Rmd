@@ -7,10 +7,7 @@ output:
   pdf_document: default
 ---
 
-```{r}
-# library statements 
-# read in data
-
+```{r libraries}
 library(ISLR)
 library(dplyr)
 library(readr)
@@ -20,7 +17,9 @@ library(splines)
 library(tidymodels)
 library(gridExtra)
 tidymodels_prefer()
+```
 
+```{r read_data}
 COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
 
 Employment_State <- read.csv("Employment - State - Daily.csv", na.strings = ".")
