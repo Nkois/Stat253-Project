@@ -78,7 +78,7 @@ random_forest_data <- random_forest_data %>% select(gps_away_from_home, case_rat
 ```
 
 ## Bagging
-```{r creating_recipe}
+```{r bag_creating_recipe}
 # Re-sampleing
 spade_rec <- recipe(Region ~ ., data = random_forest_data) %>%
   step_nzv(all_predictors()) %>%
@@ -89,7 +89,7 @@ spade_rec <- recipe(Region ~ ., data = random_forest_data) %>%
 (spade_rec %>% prep(random_forest_data) %>% juice() %>% ncol()) - 1 
 ```
 
-```{r creating_workflow}
+```{r bag_create_workflow}
 # Bagging Model Spec
 bag_spec <- rand_forest() %>%
   set_engine(engine = 'ranger') %>% 
@@ -107,7 +107,7 @@ region_bag_wf <- workflow() %>%
 
 ### Fit Models
 
-```{r fit_model}
+```{r bag_fit_model}
 set.seed(123) # Randomness in the bootstrap samples
 
 region_bag_fit <- region_bag_wf %>%
@@ -121,7 +121,7 @@ region_bag_fit
 
 To  calculate OOB metrics, we need to get the OOB predictions from the fit model.
 
-```{r oob_metrics}
+```{r bag_oob_metrics}
 region_bag_OOB_output <- tibble(
   .pred_class = region_bag_fit %>% extract_fit_engine() %>% pluck('predictions'),
   Region = random_forest_data %>% pull(Region))
@@ -134,7 +134,7 @@ region_bag_OOB_output %>%
 
 To estimate AUC of ROC curve based on OOB predictions, we'll need to refit the model to get the predicted probabilities. 
 
-```{r refit_model}
+```{r bag_refit_model}
 set.seed(123) # to get the same bootstrap samples, use same seed
 
 region_bag_fit2 <- region_bag_wf %>%
@@ -144,7 +144,7 @@ region_bag_fit2 <- region_bag_wf %>%
 region_bag_fit2
 ```
 
-```{r auc_of_roc}
+```{r bag_auc_of_roc}
 region_bag_OOB_output2 <- bind_cols(
   region_bag_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
   random_forest_data %>% select(Region))
@@ -161,7 +161,7 @@ region_bag_OOB_output2 %>%
 
 ### Model Specification
 
-```{r mod_spec}
+```{r rf_mod_spec}
 rf_spec <- rand_forest() %>%
   set_engine(engine = 'ranger') %>% 
   set_args(mtry = NULL, # size of random subset of variables; default is floor(sqrt(ncol(x)))
@@ -182,7 +182,7 @@ region_rf_wf <- workflow() %>%
 
 ### Fit Models
 
-```{r fit_model}
+```{r rf_fit_model}
 set.seed(123)
 region_rf_fit <- region_rf_wf %>%
   fit(data = random_forest_data)
@@ -195,7 +195,7 @@ region_rf_fit # check out OOB prediction error (accuracy = 1 - OOB prediction er
 
 To  calculate OOB metrics, we need to get the OOB predictions from the fit model.
 
-```{r oob_metrics}
+```{r rf_oob_metrics}
 #region_rf_OOB_output <- tibble(
 #  .pred_class = region_rf_fit %>% extract_fit_engine() %>% pluck('predictions'),
 #  Region = random_forest_data %>% pull(Region))
@@ -217,7 +217,7 @@ region_rf_OOB_output(region_rf_fit2,NULL, random_forest_data %>% pull(Region))
 
 To estimate AUC of ROC curve using OOB predictions, we'll need to refit the model to get the predicted probabilities. 
 
-```{r refit_model}
+```{r rf_refit_model}
 set.seed(123) #to get the same bootstrap samples, use same seed
 region_rf_fit2 <- region_rf_wf %>%
   update_model(rf_spec %>% set_args(probability = TRUE)) %>%
@@ -226,7 +226,7 @@ region_rf_fit2 <- region_rf_wf %>%
 region_rf_fit2
 ```
 
-```{r auc_roc}
+```{r rf_auc_roc}
 region_rf_OOB_output2 <- bind_cols(
   region_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
   random_forest_data%>% select(Region))
@@ -244,7 +244,7 @@ region_rf_OOB_output2 %>%
 
 ### Variable Importance
 
-```{r variable_importance}
+```{r rf_variable_importance}
 region_rf_fit %>% extract_fit_engine() %>% vip() #based on impurity
 
 region_rf_wf %>% #based on permutation
@@ -252,7 +252,7 @@ region_rf_wf %>% #based on permutation
   fit(data = random_forest_data) %>% extract_fit_engine() %>% vip()
 ```
 
-```{r confusion_matrix}
+```{r rf_confusion_matrix}
 #rf_OOB_output(data_fit_mtry12,12, land %>% pull(class)) %>%
 #    conf_mat(truth = class, estimate= .pred_class)
 
@@ -273,12 +273,12 @@ region_rf_wf %>% #based on permutation
 
 To build logistic regression models in `tidymodels`, first load the package and set the seed for the random number generator to ensure reproducible results:
 
-```{r load_data}
+```{r logistic_reg_load_data}
 policy <- read.csv("policy.csv", na.strings = "")
 set.seed(253)
 ```
 
-```{r data_cleaning}
+```{r logistic_reg_data_cleaning}
 policy$date_restrictions_start<-as.Date(policy$date_restrictions_start,"%Y-%m-%d")
 policy$date_restrictions_end<-as.Date(policy$date_restrictions_end,"%Y-%m-%d")
 
@@ -296,7 +296,7 @@ full_cut2 <- mutate(full_cut2, day_with_allCloser = if_else(Date >= date_restric
 ```
 
 
-```{r log_mod}
+```{r logistic_reg_mod}
 # Log Model and data Cutting
 full_cut2$isSouth <- as.factor(full_cut2$isSouth)
 full_cut2$day_with_allCloser <- as.factor(full_cut2$day_with_allCloser)
@@ -328,7 +328,7 @@ log_fit <- fit(log_wf, data = full_cut_sub3)
 
 **Examining the logistic model**
 
-```{r coefficients}
+```{r logistic_reg_coefficients}
 # Print out Coefficients
 log_fit %>% tidy()
 
@@ -340,7 +340,7 @@ log_fit %>% tidy() %>%
 
 **Making predictions from the logistic model**
 
-```{r model_predictions}
+```{r logistic_reg_model_predictions}
 # Make soft (probability) predictions
 predict(log_fit, new_data = full_cut_sub3, type = "prob")
 
@@ -350,7 +350,7 @@ predict(log_fit, new_data = full_cut_sub3, type = "class")
 
 **Evaluating the logistic model on training data**
 
-```{r evaluating_log_mod}
+```{r evaluating_logistic_reg_mod}
 # Soft predictions
 logistic_output <-  full_cut_sub3 %>%
   bind_cols(predict(log_fit, new_data = full_cut_sub3, type = 'prob')) 
@@ -370,7 +370,7 @@ logistic_output %>%
 
 **Calculate evaluation metrics of the logistic model on training data**
 
-```{r confusion_matrix}
+```{r logistic_reg_confusion_matrix}
 # Confusion Matrix
 logistic_output %>%
   conf_mat(truth = day_with_allCloser, estimate = .pred_class)
@@ -387,7 +387,7 @@ logistic_output %>%
 
 ## ROC Curve: evaluating logistic model using soft predictions
 
-```{r auc_roc}
+```{r logistic_reg_auc_roc}
 logistic_roc <- logistic_output %>% 
     roc_curve(day_with_allCloser, .pred_1, event_level = "second")
 
@@ -396,7 +396,7 @@ autoplot(logistic_roc) + theme_classic()
 
 **Calculate evaluation metrics of the logistic model using CV**
 
-```{r cv_fit_mod}
+```{r logistic_reg_cv_fit_mod}
 log_cv_fit <- fit_resamples(
     log_wf, 
     resamples = data_cv10,
