@@ -1,6 +1,6 @@
 ---
 title: "Clustering"
-author: "Sar"
+author: "Sar, North, Henry, Quinn"
 date: "4/12/2022"
 output:
   pdf_document: default
@@ -184,7 +184,7 @@ log_metrics <- metric_set(sens, yardstick::spec, accuracy)
 full_cut_sub2 %>% 
   log_metrics(estimate = Pred.Region, truth = Region)
 
-rand_index <- adj.rand.index(full_cut_sub2$Region, full_cut_sub2$Pred.Region)
+#rand_index <- adj.rand.index(full_cut_sub2$Region, full_cut_sub2$Pred.Region)
 
 #Accuracy is 34%, this is kind of awful lol.
 ```

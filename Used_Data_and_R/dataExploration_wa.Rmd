@@ -1,10 +1,10 @@
 ---
-title: "dataExploration"
-author: "North Carpenter"
+title: "Data Exploration (WA)"
+author: "Sar, North, Henry, Quinn"
 date: "2/17/2022"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r libraries}
@@ -437,9 +437,9 @@ best_se_penalty <- select_by_one_std_err(tune_res, metric = 'mae', desc(penalty)
 ```{r coefficient_paths}
 glmnet_output <- final_fit %>% extract_fit_parsnip() %>% pluck('fit') # get the original glwaet output
 
-lambdas <- glwaet_output$lambda
+lambdas <- glmnet_output$lambda
 coefs_lambdas <- 
-  coefficients(glwaet_output, s = lambdas )  %>% 
+  coefficients(glmnet_output, s = lambdas )  %>% 
   as.matrix() %>%  
   t() %>% 
   as.data.frame() %>% 
