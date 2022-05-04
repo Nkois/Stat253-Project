@@ -94,12 +94,12 @@ lm_spec <-
   set_engine(engine = 'lm') %>%
   set_mode('regression')
 
-full_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota) %>%
+full_rec <- recipe(gps_away_from_home ~  case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota) %>%
   step_normalize(all_numeric_predictors()) %>%
   step_dummy(all_nominal_predictors())%>%
   step_nzv(all_predictors())
 
-full_rec_dummy <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices + dummy_spend_fall, data=minnesota) %>%
+full_rec_dummy <- recipe(gps_away_from_home ~ case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices + dummy_spend_fall, data=minnesota) %>%
   step_normalize(all_numeric_predictors()) %>%
   step_dummy(all_nominal_predictors())%>%
   step_nzv(all_predictors())
@@ -146,12 +146,6 @@ mn_mod_output_OLS <- mn_mod_dummy %>%
     mutate(resid = gps_away_from_home - .pred)
 
 ggplot(mn_mod_output_OLS, aes(y = resid, x = hospitalized_rate)) +
-    geom_point() +
-    geom_smooth(color = "blue", se = FALSE) +
-    geom_hline(yintercept = 0, color = "red") + 
-    theme_classic()
-
-ggplot(mn_mod_output_OLS, aes(y = resid, x = fullvaccine_rate)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
@@ -208,7 +202,7 @@ lm_lasso_spec <-
   set_engine(engine = 'glmnet') %>% 
   set_mode('regression') 
 
-full_lasso_rec <- recipe(gps_away_from_home ~  fullvaccine_rate + case_rate + hospitalized_rate  + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota) %>%
+full_lasso_rec <- recipe(gps_away_from_home ~ case_rate + hospitalized_rate  + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices, data=minnesota) %>%
   step_normalize(all_numeric_predictors()) %>%
   step_dummy(all_nominal_predictors())%>%
   step_nzv(all_predictors())
@@ -284,12 +278,6 @@ ggplot(mn_mod_output_lasso, aes(y = .pred, x = gps_away_from_home)) +
     theme_classic()
 
 ggplot(mn_mod_output_lasso, aes(y = resid, x = hospitalized_rate)) +
-    geom_point() +
-    geom_smooth(color = "blue", se = FALSE) +
-    geom_hline(yintercept = 0, color = "red") + 
-    theme_classic()
-
-ggplot(mn_mod_output_lasso, aes(y = resid, x = fullvaccine_rate)) +
     geom_point() +
     geom_smooth(color = "blue", se = FALSE) +
     geom_hline(yintercept = 0, color = "red") + 
