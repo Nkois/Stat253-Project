@@ -1,0 +1,130 @@
+---
+title: "GAMs and NonLinearity"
+author: "Sar, North, Henry, Quinn"
+date: "3/8/2022"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r libaries}
+library(ISLR)
+library(dplyr)
+library(readr)
+library(broom)
+library(ggplot2)
+library(splines)
+library(tidymodels)
+tidymodels_prefer()
+```
+
+```{r load_data}
+COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
+
+Employment_State <- read.csv("Employment - State - Daily.csv", na.strings = ".")
+
+Mobility_State <- read.csv("Google Mobility - State - Daily.csv", na.strings = ".")
+  
+Spending_State <- read.csv("Affinity - State - Daily.csv", na.strings = ".")
+```
+
+```{r data_cleaning}
+COVID_State$Date<-as.Date(with(COVID_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+Employment_State$Date<-as.Date(with(Employment_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+Mobility_State$Date<-as.Date(with(Mobility_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+Spending_State$Date<-as.Date(with(Spending_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+full_data <- merge(merge(merge(COVID_State, Employment_State, by=c("Date","statefips")), Mobility_State, by=c("Date","statefips")), Spending_State, by=c("Date","statefips"))
+
+head(full_data)
+
+full_data1 <- full_data %>%
+  select(-year.x, -month.x, -day.x, - year.y, -month.y, -day.y, -year.x )
+
+
+minnesota <- full_data1 %>%
+  filter(statefips==27)
+  
+```
+
+```{r final_data}
+minnesota_cut <- minnesota %>%
+  filter(Date > "2020-04-13")
+```
+
+```{r gam_model}
+set.seed(123)
+
+# Don't necessarily need to use gam_spec, can use lm_spec instead
+gam_spec <- 
+  gen_additive_mod() %>%
+  set_engine(engine = 'mgcv') %>%
+  set_mode('regression') 
+
+lm_spec <-
+  linear_reg() %>%
+  set_engine(engine = 'lm') %>%
+  set_mode('regression')
+
+gam_mod <- fit(gam_spec,
+           gps_away_from_home ~ s(case_rate) + s(hospitalized_rate, k=20) + s(emp_incq1, k=20) + s(emp_incq2, k=20) + s(emp_incq3, k=20) + s(emp_incq4) + s(spend_remoteservices),
+    data = minnesota_cut)
+```
+
+```{r gam_check}
+# Diagnostics: Check to see if the number of knots is large enough 
+par(mfrow=c(2,2))
+gam_mod %>% pluck('fit') %>% mgcv::gam.check() 
+```
+
+```{r gam_summary}
+# Parameter (linear) estimates and then Smooth Terms (H0: no relationship)
+gam_mod %>% pluck('fit') %>% summary()
+```
+
+```{r gam_plots}
+# Looking at possible non-linear functions
+gam_mod %>% pluck('fit') %>% plot(all.terms = TRUE, pages = 1)
+```
+
+```{r recipe}
+formula = gps_away_from_home ~ case_rate + hospitalized_rate + emp_incq1 + emp_incq2 + emp_incq3 + emp_incq4 + spend_remoteservices
+gam_rec <- recipe(formula, data=minnesota_cut)
+
+gam_rec_new <- gam_rec %>%
+     step_ns(case_rate, deg_free = 6) %>% 
+     step_ns(hospitalized_rate, deg_free = 9) %>%
+     step_ns(emp_incq1, deg_free = 8) %>% 
+     step_ns(emp_incq2, deg_free = 9) %>%
+     step_ns(emp_incq3, deg_free = 9) %>% 
+     step_ns(emp_incq4, deg_free = 7) %>% 
+     step_ns(spend_remoteservices, deg_free = 6) 
+```
+
+```{r metrics}
+data_cv8 <- minnesota_cut %>% 
+    vfold_cv(v = 8)
+
+gam_wf <- workflow() %>%
+    add_model(lm_spec) %>%
+    add_recipe(gam_rec)
+
+fit_resamples(
+    gam_wf,
+    resamples = data_cv8, # cv folds
+    metrics = metric_set(mae,rmse,rsq)                     
+) %>% collect_metrics()
+
+gam_new_wf <- workflow() %>%
+    add_model(lm_spec) %>%
+    add_recipe(gam_rec_new)
+
+fit_resamples(
+    gam_new_wf,
+    resamples = data_cv8, # cv folds
+    metrics = metric_set(mae,rmse,rsq)                     
+) %>% collect_metrics()
+```
