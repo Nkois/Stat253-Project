@@ -1,0 +1,406 @@
+---
+title: "Classification"
+author: "Sar, North, Henry, Quinn"
+date: "3/29/2022"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries}
+library(ISLR)
+library(dplyr)
+library(readr)
+library(broom)
+library(ggplot2)
+library(splines)
+library(tidymodels)
+library(gridExtra)
+library(maps)
+library(caret)
+library(vip)
+library(probably) 
+tidymodels_prefer()
+```
+
+```{r load_data}
+COVID_State <- read.csv("COVID - State - Daily.csv", na.strings = ".")
+
+Employment_State <- read.csv("Employment - State - Daily.csv", na.strings = ".")
+
+Mobility_State <- read.csv("Google Mobility - State - Daily.csv", na.strings = ".")
+  
+Spending_State <- read.csv("Affinity - State - Daily.csv", na.strings = ".")
+
+regions <- read.csv("regions.csv")
+fips <- state.fips
+```
+
+```{r data_cleaning} 
+COVID_State$Date<-as.Date(with(COVID_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+Employment_State$Date<-as.Date(with(Employment_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+Mobility_State$Date<-as.Date(with(Mobility_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+Spending_State$Date<-as.Date(with(Spending_State,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+full_data <- merge(merge(merge(COVID_State, Employment_State, by=c("Date","statefips")), Mobility_State, by=c("Date","statefips")), Spending_State, by=c("Date","statefips"))
+
+head(full_data)
+
+full_data1 <- full_data %>%
+  select(-year.x, -month.x, -day.x, - year.y, -month.y, -day.y, -year.x )
+
+regions <- regions%>%
+  inner_join(fips, by=c("State.Code"="abb"))
+
+# Created dataset with the fips code
+full_cut <- full_data1 %>%
+  filter(Date > "2020-04-13")%>%
+  select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed)%>%
+  left_join(regions, by=c("statefips"="fips"))
+
+# Final Data Set
+full_cut <- full_cut %>%
+  select(statefips, Date, gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed,State.Code, Region, Division)
+
+# Splitting the Full cut so it has regions for CV
+random_forest_data <- full_cut %>% na.omit()
+random_forest_data <- random_forest_data %>%
+  mutate(Region = factor(Region)) %>% 
+  mutate(across(where(is.character), as.factor))
+random_forest_data <- random_forest_data %>% select(gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices, spend_hcs, emp_incbelowmed, Region)
+```
+
+## Bagging
+```{r bag_creating_recipe}
+# Re-sampleing
+spade_rec <- recipe(Region ~ ., data = random_forest_data) %>%
+  step_nzv(all_predictors()) %>%
+  step_novel(all_nominal_predictors()) %>%
+  step_dummy(all_nominal_predictors()) 
+
+# Find out the Total Number of Predictors
+(spade_rec %>% prep(random_forest_data) %>% juice() %>% ncol()) - 1 
+```
+
+```{r bag_create_workflow}
+# Bagging Model Spec
+bag_spec <- rand_forest() %>%
+  set_engine(engine = 'ranger') %>% 
+  set_args(mtry = 5, 
+           trees = 500,
+           min_n = 20,
+           probability = FALSE) %>%
+  set_mode('classification')
+
+region_bag_wf <- workflow() %>%
+  add_model(bag_spec) %>%
+  add_recipe(spade_rec)
+```
+
+### Fit Models
+
+```{r bag_fit_model}
+set.seed(123) # Randomness in the bootstrap samples
+
+region_bag_fit <- region_bag_wf %>%
+  fit(data = random_forest_data)
+
+region_bag_fit
+```
+
+
+### Evaluate Models
+
+To  calculate OOB metrics, we need to get the OOB predictions from the fit model.
+
+```{r bag_oob_metrics}
+region_bag_OOB_output <- tibble(
+  .pred_class = region_bag_fit %>% extract_fit_engine() %>% pluck('predictions'),
+  Region = random_forest_data %>% pull(Region))
+
+bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
+
+region_bag_OOB_output %>% 
+  bag_metrics(truth = Region, estimate = .pred_class)
+```
+
+To estimate AUC of ROC curve based on OOB predictions, we'll need to refit the model to get the predicted probabilities. 
+
+```{r bag_refit_model}
+set.seed(123) # to get the same bootstrap samples, use same seed
+
+region_bag_fit2 <- region_bag_wf %>%
+  update_model(bag_spec %>% set_args(probability = TRUE)) %>% # Now, we want soft (probability) predictions
+  fit(data = random_forest_data)
+
+region_bag_fit2
+```
+
+```{r bag_auc_of_roc}
+region_bag_OOB_output2 <- bind_cols(
+  region_bag_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
+  random_forest_data %>% select(Region))
+
+region_bag_OOB_output2 %>% 
+  roc_curve(Region, c(South, West, Midwest, Northeast), event_level = "second") %>% autoplot()
+
+region_bag_OOB_output2 %>% 
+  roc_auc(Region, c(South, West, Midwest, Northeast), event_level = "second") #Area under Curve
+```
+
+
+##  Random Forest
+
+### Model Specification
+
+```{r rf_mod_spec}
+rf_spec <- rand_forest() %>%
+  set_engine(engine = 'ranger') %>% 
+  set_args(mtry = NULL, # size of random subset of variables; default is floor(sqrt(ncol(x)))
+           trees = 500, # Number of bags
+           min_n = 20,
+           probability = FALSE, # want hard predictions first
+           importance = 'impurity') %>% 
+  set_mode('classification') # change this for regression tree
+
+rf_spec
+
+region_rf_wf <- workflow() %>%
+  add_model(rf_spec) %>%
+  add_recipe(spade_rec)
+```
+
+
+
+### Fit Models
+
+```{r rf_fit_model}
+set.seed(123)
+region_rf_fit <- region_rf_wf %>%
+  fit(data = random_forest_data)
+
+region_rf_fit # check out OOB prediction error (accuracy = 1 - OOB prediction error)
+```
+
+
+### Evaluate Models
+
+To  calculate OOB metrics, we need to get the OOB predictions from the fit model.
+
+```{r rf_oob_metrics}
+#region_rf_OOB_output <- tibble(
+#  .pred_class = region_rf_fit %>% extract_fit_engine() %>% pluck('predictions'),
+#  Region = random_forest_data %>% pull(Region))
+
+#bag_metrics <- metric_set(sens, yardstick::spec, accuracy)
+
+
+region_rf_OOB_output <- function(fit_model, model_label, truth){
+    tibble(
+          .pred_class = region_rf_fit %>% extract_fit_engine() %>% pluck('predictions'), #OOB predictions
+          Region = truth,
+          label = model_label
+      )
+}
+
+#check out the function output
+region_rf_OOB_output(region_rf_fit2,NULL, random_forest_data %>% pull(Region))
+```
+
+To estimate AUC of ROC curve using OOB predictions, we'll need to refit the model to get the predicted probabilities. 
+
+```{r rf_refit_model}
+set.seed(123) #to get the same bootstrap samples, use same seed
+region_rf_fit2 <- region_rf_wf %>%
+  update_model(rf_spec %>% set_args(probability = TRUE)) %>%
+  fit(data = random_forest_data)
+
+region_rf_fit2
+```
+
+```{r rf_auc_roc}
+region_rf_OOB_output2 <- bind_cols(
+  region_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions') %>% as_tibble(),
+  random_forest_data%>% select(Region))
+
+region_rf_OOB_output3 <- bind_cols(
+  .pred_class = region_rf_fit2 %>% extract_fit_engine() %>% pluck('predictions'), 
+  Region = random_forest_data %>% pull(Region))
+
+region_rf_OOB_output2 %>% 
+  roc_curve(Region, c(South, West, Midwest, Northeast), event_level = "second") %>% autoplot()
+
+region_rf_OOB_output2 %>% 
+  roc_auc(Region, c(South, West, Midwest, Northeast), event_level = "second") #Area under Curve
+```
+
+### Variable Importance
+
+```{r rf_variable_importance}
+region_rf_fit %>% extract_fit_engine() %>% vip() #based on impurity
+
+region_rf_wf %>% #based on permutation
+  update_model(rf_spec %>% set_args(importance = "permutation")) %>%
+  fit(data = random_forest_data) %>% extract_fit_engine() %>% vip()
+```
+
+```{r rf_confusion_matrix}
+#rf_OOB_output(data_fit_mtry12,12, land %>% pull(class)) %>%
+#    conf_mat(truth = class, estimate= .pred_class)
+
+ region_rf_OOB_output(region_rf_fit2, NULL, random_forest_data %>% pull(Region)) %>%
+   conf_mat(truth = Region, estimate = .pred_class)
+
+# log_metrics <- metric_set(sens, yardstick::spec, accuracy) # these metrics are based on hard predictions
+
+#sens: sensitivity = chance of correctly predicting second level, given second level (Yes)
+#spec: specificity = chance of correctly predicting first level, given first level (No)
+#accuracy: accuracy = chance of correctly predicting outcome
+
+# region_rf_OOB_output3 %>% 
+#   log_metrics(estimate = .pred_class, truth = c(South, West, Midwest, Northeast), event_level = "second")
+```
+
+### Logistic Regression
+
+To build logistic regression models in `tidymodels`, first load the package and set the seed for the random number generator to ensure reproducible results:
+
+```{r logistic_reg_load_data}
+policy <- read.csv("policy.csv", na.strings = "")
+set.seed(253)
+```
+
+```{r logistic_reg_data_cleaning}
+policy$date_restrictions_start<-as.Date(policy$date_restrictions_start,"%Y-%m-%d")
+policy$date_restrictions_end<-as.Date(policy$date_restrictions_end,"%Y-%m-%d")
+
+policy_cut <- policy %>%
+  select(statename, statefips, all_restrictions, date_restrictions_start, date_restrictions_end)%>%
+  filter(statename != "")
+
+full_cut2 <- full_cut%>%
+  mutate(isSouth = if_else(Region == "South", 1, 0))%>%
+  inner_join(policy_cut, by=c("statefips"="statefips"))
+
+# Creating a Dummy Variable that is yes for each day in a state where both nonessential buisness closer and stay at home orders were in place..
+full_cut2 <- mutate(full_cut2, day_with_allCloser = if_else(Date >= date_restrictions_start & Date <= date_restrictions_end, 1, 0))%>%
+  filter(Date <= as.Date("2020-06-09","%Y-%m-%d"))
+```
+
+
+```{r logistic_reg_mod}
+# Log Model and data Cutting
+full_cut2$isSouth <- as.factor(full_cut2$isSouth)
+full_cut2$day_with_allCloser <- as.factor(full_cut2$day_with_allCloser)
+
+full_cut_sub3 <- full_cut2 %>%
+  select(gps_away_from_home, case_rate, hospitalized_rate, spend_remoteservices,spend_hcs, emp_incbelowmed, day_with_allCloser)
+
+data_cv10 <- vfold_cv(full_cut_sub3, v = 10)
+
+# Logistic Regression Model Spec
+logistic_spec <- logistic_reg() %>%
+    set_engine('glm') %>%
+    set_mode('classification')
+
+# Recipe
+logistic_rec <- recipe(day_with_allCloser ~ ., data = full_cut_sub3) %>%
+    step_normalize(all_numeric_predictors()) %>% 
+    step_dummy(all_nominal_predictors())
+
+log_wf <- workflow() %>% 
+    add_recipe(logistic_rec) %>%
+    add_model(logistic_spec) 
+
+# Fit Model to Training Data
+log_fit <- fit(log_wf, data = full_cut_sub3)
+```
+
+<br>
+
+**Examining the logistic model**
+
+```{r logistic_reg_coefficients}
+# Print out Coefficients
+log_fit %>% tidy()
+
+# Get Exponentiated coefficients + CI
+log_fit %>% tidy() %>%
+  mutate(OR.conf.low = exp(estimate - 1.96*std.error), OR.conf.high = exp(estimate + 1.96*std.error)) %>% # do this first
+  mutate(OR = exp(estimate))
+```
+
+**Making predictions from the logistic model**
+
+```{r logistic_reg_model_predictions}
+# Make soft (probability) predictions
+predict(log_fit, new_data = full_cut_sub3, type = "prob")
+
+# Make hard (class) predictions (using a default 0.5 probability threshold)
+predict(log_fit, new_data = full_cut_sub3, type = "class")
+```
+
+**Evaluating the logistic model on training data**
+
+```{r evaluating_logistic_reg_mod}
+# Soft predictions
+logistic_output <-  full_cut_sub3 %>%
+  bind_cols(predict(log_fit, new_data = full_cut_sub3, type = 'prob')) 
+
+# Hard predictions (you pick threshold)
+logistic_output <- logistic_output %>%
+  mutate(.pred_class = make_two_class_pred(.pred_0, levels(day_with_allCloser), threshold = .6))
+
+# Visualize Soft Predictions
+logistic_output %>%
+  ggplot(aes(x = day_with_allCloser, y = .pred_1)) +
+  geom_boxplot() + 
+  geom_hline(yintercept = 0.6, color='red') + 
+  labs(y = 'Predicted Probability of Outcome', x = 'Observed Outcome') +
+  theme_classic()
+```
+
+**Calculate evaluation metrics of the logistic model on training data**
+
+```{r logistic_reg_confusion_matrix}
+# Confusion Matrix
+logistic_output %>%
+  conf_mat(truth = day_with_allCloser, estimate = .pred_class)
+
+log_metrics <- metric_set(sens, yardstick::spec, accuracy) # these metrics are based on hard predictions
+
+#sens: sensitivity = chance of correctly predicting second level, given second level (Yes)
+#spec: specificity = chance of correctly predicting first level, given first level (No)
+#accuracy: accuracy = chance of correctly predicting outcome
+
+logistic_output %>% 
+  log_metrics(estimate = .pred_class, truth = day_with_allCloser, event_level = "second") # set second level of outcome as "success"
+```
+
+## ROC Curve: evaluating logistic model using soft predictions
+
+```{r logistic_reg_auc_roc}
+logistic_roc <- logistic_output %>% 
+    roc_curve(day_with_allCloser, .pred_1, event_level = "second")
+
+autoplot(logistic_roc) + theme_classic()
+```
+
+**Calculate evaluation metrics of the logistic model using CV**
+
+```{r logistic_reg_cv_fit_mod}
+log_cv_fit <- fit_resamples(
+    log_wf, 
+    resamples = data_cv10,
+    metrics = metric_set(sens, yardstick::spec, accuracy, roc_auc),
+    control = control_resamples(save_pred = TRUE, event_level = 'second'))
+
+collect_metrics(log_cv_fit) #default threshold is 0.5
+```
