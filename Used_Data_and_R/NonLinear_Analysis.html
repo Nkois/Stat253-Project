@@ -171,45 +171,15 @@ pre code {
 </div>
 
 
+<pre class="r"><code>knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE, tidy = TRUE)</code></pre>
 <pre class="r"><code>library(ISLR)
-library(dplyr)</code></pre>
-<pre><code>## Warning: replacing previous import &#39;lifecycle::last_warnings&#39; by
-## &#39;rlang::last_warnings&#39; when loading &#39;pillar&#39;</code></pre>
-<pre><code>## 
-## Attaching package: &#39;dplyr&#39;</code></pre>
-<pre><code>## The following objects are masked from &#39;package:stats&#39;:
-## 
-##     filter, lag</code></pre>
-<pre><code>## The following objects are masked from &#39;package:base&#39;:
-## 
-##     intersect, setdiff, setequal, union</code></pre>
-<pre class="r"><code>library(readr)</code></pre>
-<pre><code>## Warning: replacing previous import &#39;lifecycle::last_warnings&#39; by
-## &#39;rlang::last_warnings&#39; when loading &#39;hms&#39;</code></pre>
-<pre class="r"><code>library(broom)</code></pre>
-<pre><code>## Warning: package &#39;broom&#39; was built under R version 4.1.2</code></pre>
-<pre class="r"><code>library(ggplot2)
+library(dplyr)
+library(readr)
+library(broom)
+library(ggplot2)
 library(splines)
-library(tidymodels)</code></pre>
-<pre><code>## Registered S3 method overwritten by &#39;tune&#39;:
-##   method                   from   
-##   required_pkgs.model_spec parsnip</code></pre>
-<pre><code>## ── Attaching packages ────────────────────────────────────── tidymodels 0.1.4 ──</code></pre>
-<pre><code>## ✓ dials        0.0.10     ✓ tibble       3.1.6 
-## ✓ infer        1.0.0      ✓ tidyr        1.1.4 
-## ✓ modeldata    0.1.1      ✓ tune         0.1.6 
-## ✓ parsnip      0.1.7      ✓ workflows    0.2.4 
-## ✓ purrr        0.3.4      ✓ workflowsets 0.1.0 
-## ✓ recipes      0.1.17     ✓ yardstick    0.0.9 
-## ✓ rsample      0.1.1</code></pre>
-<pre><code>## ── Conflicts ───────────────────────────────────────── tidymodels_conflicts() ──
-## x purrr::discard()  masks scales::discard()
-## x dplyr::filter()   masks stats::filter()
-## x dplyr::lag()      masks stats::lag()
-## x yardstick::spec() masks readr::spec()
-## x recipes::step()   masks stats::step()
-## • Use tidymodels_prefer() to resolve common conflicts.</code></pre>
-<pre class="r"><code>tidymodels_prefer()</code></pre>
+library(tidymodels)
+tidymodels_prefer()</code></pre>
 <pre class="r"><code>COVID_State &lt;- read.csv(&quot;COVID - State - Daily.csv&quot;, na.strings = &quot;.&quot;)
 
 Employment_State &lt;- read.csv(&quot;Employment - State - Daily.csv&quot;, na.strings = &quot;.&quot;)
@@ -225,11 +195,9 @@ Mobility_State$Date&lt;-as.Date(with(Mobility_State,paste(year,month,day,sep=&qu
 
 Spending_State$Date&lt;-as.Date(with(Spending_State,paste(year,month,day,sep=&quot;-&quot;)),&quot;%Y-%m-%d&quot;)
 
-full_data &lt;- merge(merge(merge(COVID_State, Employment_State, by=c(&quot;Date&quot;,&quot;statefips&quot;)), Mobility_State, by=c(&quot;Date&quot;,&quot;statefips&quot;)), Spending_State, by=c(&quot;Date&quot;,&quot;statefips&quot;))</code></pre>
-<pre><code>## Warning in merge.data.frame(merge(merge(COVID_State, Employment_State, by =
-## c(&quot;Date&quot;, : column names &#39;year.x&#39;, &#39;month.x&#39;, &#39;day.x&#39;, &#39;year.y&#39;, &#39;month.y&#39;,
-## &#39;day.y&#39; are duplicated in the result</code></pre>
-<pre class="r"><code>head(full_data)</code></pre>
+full_data &lt;- merge(merge(merge(COVID_State, Employment_State, by=c(&quot;Date&quot;,&quot;statefips&quot;)), Mobility_State, by=c(&quot;Date&quot;,&quot;statefips&quot;)), Spending_State, by=c(&quot;Date&quot;,&quot;statefips&quot;))
+
+head(full_data)</code></pre>
 <pre><code>##         Date statefips year.x month.x day.x new_case_count new_death_count
 ## 1 2020-02-24         1   2020       2    24             NA              NA
 ## 2 2020-02-24        10   2020       2    24             NA              NA
@@ -447,7 +415,6 @@ fit_resamples(
     resamples = data_cv8, # cv folds
     metrics = metric_set(mae,rmse,rsq)                     
 ) %&gt;% collect_metrics()</code></pre>
-<pre><code>## Warning: package &#39;rlang&#39; was built under R version 4.1.2</code></pre>
 <pre><code>## # A tibble: 3 × 6
 ##   .metric .estimator   mean     n  std_err .config             
 ##   &lt;chr&gt;   &lt;chr&gt;       &lt;dbl&gt; &lt;int&gt;    &lt;dbl&gt; &lt;chr&gt;               
