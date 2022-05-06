@@ -3,8 +3,8 @@ title: "Regression"
 author: "Sar, North, Henry, Quinn"
 date: "3/3/2022"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}

@@ -3,8 +3,8 @@ title: "Data Exploration (WA)"
 author: "Sar, North, Henry, Quinn"
 date: "2/17/2022"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r libraries}

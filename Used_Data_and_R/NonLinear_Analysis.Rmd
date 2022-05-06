@@ -3,8 +3,8 @@ title: "GAMs and NonLinearity"
 author: "Sar, North, Henry, Quinn"
 date: "3/8/2022"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r libaries}
