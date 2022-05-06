@@ -7,6 +7,10 @@ output:
   pdf_document: default
 ---
 
+```{r}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE, tidy = TRUE)
+```
+
 ```{r libraries}
 library(ISLR)
 library(dplyr)

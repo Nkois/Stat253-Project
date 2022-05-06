@@ -6,6 +6,9 @@ output:
   html_document: default
   pdf_document: default
 ---
+```{r}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE, tidy = TRUE)
+```
 
 ```{r libaries}
 library(ISLR)
