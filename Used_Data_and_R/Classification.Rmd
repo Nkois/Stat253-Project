@@ -104,7 +104,6 @@ region_bag_wf <- workflow() %>%
   add_recipe(spade_rec)
 ```
 
-
 ### Fit Models
 
 ```{r bag_fit_model}
